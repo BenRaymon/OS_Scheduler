@@ -2,20 +2,16 @@
 
 //Hold queue 1 - linked list
 node *headHQ1;
-node *tailHQ1;
 //Hold queue 2 - linked list
 node *headHQ2;
-node *tailHQ2;
 
 int main(int argc, char *argv[]) {
 
     //Hold queue 1 - SJF - linked list
     headHQ1 = NULL;
-    tailHQ1 = headHQ1;
     //Hold queue 2 - FIFO - linked list
     headHQ2 = NULL;
-    tailHQ2 = headHQ2;
-
+    
     config *systemConfig = malloc(sizeof(config));
 
     FILE *file = fopen(argv[2], "r" );
@@ -158,69 +154,59 @@ int *parseInput(char* input){
 
 //SJF
 void insertHQ1(node *newNode){
-    //If no nodes, make head and tail the new node
+    //If no nodes, make head the new node
     if(headHQ1 == NULL){
         headHQ1 = newNode;
-        tailHQ1 = headHQ1;
     } else {
         node* curr = headHQ1;
+        //if new node has shorter burst than current head, place in front
+        if(newNode->job->burst < curr->job->burst){
+            headHQ1 = newNode;
+            newNode->next = curr;
+            return;
+        }
         
-        while(curr != NULL){
-            //If new job is shorter, put in front of current node
-            if(newNode->job->burst < curr->job->burst){
-                if(curr->prev == NULL){
-                    headHQ1 = newNode;
-                } else {
-                    curr->prev->next = newNode;
-                }
-                newNode->prev = curr->prev;
-                newNode->next = curr;
-                curr->prev = newNode;
-                return;
-            }
-            //If reach end of list, new job is the longest and it belongs at the end
-            else if(curr->next == NULL){
+        while(curr->next != NULL){
+            //If new job is shorter than next job, put in front of next node
+            if(newNode->job->burst < curr->next->job->burst){
+                newNode->next = curr->next;
                 curr->next = newNode;
-                newNode->prev = curr;
-                tailHQ1 = newNode;
                 return;
             }
             curr = curr->next;
         }
+        //New job is currently the longest job so put at the end
+        curr->next = newNode;
+        return;
     }
 }
 
 //FIFO
 void insertHQ2(node* newNode){
-    //If no nodes, make head and tail the new node
+    //If no nodes, make head the new node
     if(headHQ2 == NULL){
         headHQ2 = newNode;
-        tailHQ2 = headHQ1;
     } else {
         node* curr = headHQ2;
-        
-        while(curr != NULL){
-            //If new job is first, put in front of current node
-            if(newNode->job->arrival_time < curr->job->arrival_time){
-                if(curr->prev == NULL){
-                    headHQ2 = newNode;
-                } else {
-                    curr->prev->next = newNode;
-                }
-                newNode->prev = curr->prev;
-                newNode->next = curr;
-                curr->prev = newNode;
-                return;
-            } 
-            //If reach end of list, new job has arrived last and it belongs at the end
-            else if(curr->next == NULL){
+        //If new node arrived before current head, place before head
+        if(newNode->job->arrival_time < headHQ2->job->arrival_time){
+            headHQ2 = newNode;
+            newNode->next = curr;
+            return;
+        } 
+
+        while(curr->next != NULL){
+            //If new job arrived before the next job, put in front of next node
+            if(newNode->job->arrival_time < curr->next->job->arrival_time){
+                newNode->next = curr->next;
                 curr->next = newNode;
-                newNode->prev = curr;
-                tailHQ2 = newNode;
                 return;
             }
             curr = curr->next;
         }
+        //New job is currently the last to arrive so put at the end
+        curr->next = newNode;
+        return;
     }
 }
 
