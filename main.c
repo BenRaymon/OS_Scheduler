@@ -1,16 +1,24 @@
 #include "test.h"
 
-//Hold queue 1 - linked list
-node *headHQ1;
-//Hold queue 2 - linked list
-node *headHQ2;
+
+node *holdQueueOne;
+node *holdQueueTwo;
+
+node *readyQueue;
+node *runningProc;
+node *waitingQueue;
+node *finishedQueue;
+
+int currentTime = 0;
 
 int main(int argc, char *argv[]) {
 
-    //Hold queue 1 - SJF - linked list
-    headHQ1 = NULL;
-    //Hold queue 2 - FIFO - linked list
-    headHQ2 = NULL;
+    holdQueueOne = NULL;
+    holdQueueTwo = NULL;
+    readyQueue = NULL;
+    waitingQueue = NULL;
+    finishedQueue= NULL;
+    runningProc = NULL;
     
     config *systemConfig = malloc(sizeof(config));
 
@@ -19,109 +27,167 @@ int main(int argc, char *argv[]) {
     //READ INPUT FROM FILE
     if (file != NULL) {
         char line[1000];
-        while(fgets(line,sizeof(line),file)!= NULL){
-            //fprintf(stdout,"%s",line);
+        while(currentTime < 9999){
             
-            if(line[0] == 'C'){
-                fprintf(stdout, "System Configuration\n");
-                
-                int* inputs = parseInput(line);
+            currentTime += 1;
 
-                systemConfig->start_time = inputs[0];
-                systemConfig->memory = inputs[1];
-                systemConfig->devices = inputs[2];
-                systemConfig->quantum = inputs[3];
+            if(fgets(line,sizeof(line),file)!= NULL){
+                /* Process the next line of input from file */
+                if(line[0] == 'C'){
+                    fprintf(stdout, "System Configuration\n");
+                    
+                    int* inputs = parseInput(line);
 
-                free(inputs);
+                    systemConfig->start_time = inputs[0];
+                    systemConfig->total_memory = inputs[1];
+                    systemConfig->available_memory = inputs[1];
+                    systemConfig->devices = inputs[2];
+                    systemConfig->quantum = inputs[3];
 
-                // printf("Start time %d\n", systemConfig->start_time);
-                // printf("Memory %d\n", systemConfig->memory);
-                // printf("Devices %d\n", systemConfig->devices);
-                // printf("Quantum %d\n", systemConfig->quantum);
+                    free(inputs);
 
-            } else if (line[0] == 'A'){
-                fprintf(stdout, "Job Arrival\n");
-                
-                int* inputs = parseInput(line);
-                job *aJob = malloc(sizeof(job));
+                } else if (line[0] == 'A'){
+                    fprintf(stdout, "Job Arrival\n");
+                    
+                    int* inputs = parseInput(line);
+                    job *aJob = malloc(sizeof(job));
 
-                aJob->arrival_time = inputs[0];
-                aJob->job_id = inputs[1];
-                aJob->memory = inputs[2];
-                aJob->devices = inputs[3];
-                aJob->burst = inputs[4];
-                aJob->priority = inputs[5];
-                
-                free(inputs);
+                    aJob->arrival_time = inputs[0];
+                    aJob->job_id = inputs[1];
+                    aJob->memory = inputs[2];
+                    aJob->devices = inputs[3];
+                    aJob->burst = inputs[4];
+                    aJob->priority = inputs[5];
+                    
+                    free(inputs);
 
-                if(aJob->memory > systemConfig->memory){
-                    //NOT ENOUGH MEMORY
-                } else if (aJob->devices > systemConfig->devices){
-                    //NOT ENOUGH DEVICES
-                } else {
-                    node *aNode = malloc(sizeof(node));
-                    aNode -> job = aJob;
+                    if(aJob->memory > systemConfig->total_memory){
+                        //NOT ENOUGH TOTAL MEMORY
+                    } else if (aJob->devices > systemConfig->devices){
+                        //NOT ENOUGH DEVICES
+                    } else if (aJob->memory <= systemConfig->available_memory){
+                        //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
+                        process *aProc = createProc(aJob);
+                        //after creating the process it has memory allocated to it, must subtract that memory from available
+                        systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory;
 
-                    if(aJob->priority == 1){
-                        insertHQ1(aNode);
-                    } else if (aJob->priority == 2){
-                        insertHQ2(aNode);
+                        node *aNode = malloc(sizeof(node)); 
+                        aNode->proc = aProc; 
+                        readyQueue = appendQueue(aNode, readyQueue);
+
+                        //free the job that is no longer needed
+                        free(aJob);
+
+                    } else {
+                        //THERE IS NOT ENOUGH AVAILABLE MEMORY, PUT IN HOLD QUEUE
+                        node *aNode = malloc(sizeof(node));
+                        aNode -> job = aJob;
+
+                        if(aJob->priority == 1){
+                            insertHQ1(aNode);
+                        } else if (aJob->priority == 2){
+                            insertHQ2(aNode);
+                        }
                     }
+                } else if (line[0] == 'Q'){
+                    fprintf(stdout, "Request for Devices\n");
+
+                    int* inputs = parseInput(line);
+                    request *aRequest = malloc(sizeof(request));
+
+                    aRequest->time = inputs[0];
+                    aRequest->job_id = inputs[1];
+                    aRequest->devices = inputs[2];
+
+                    free(inputs); 
+
+                } else if (line[0] == 'L'){
+                    fprintf(stdout, "Release of Devices\n");
+
+                    int* inputs = parseInput(line);
+                    release *aRelease = malloc(sizeof(release));
+                    
+                    aRelease->time = inputs[0];
+                    aRelease->job_id = inputs[1];
+                    aRelease->devices = inputs[2];
+
+                    free(inputs);
+
+                } else if (line[0] == 'D'){
+                    fprintf(stdout, "System Status\n");
                 }
-
-                printList(headHQ1);
-                printf("split\n");
-                printList(headHQ2);
-
-                //create a node and add job to a linked list
-
-                // printf("Arrival time %d\n", aJob->arrival_time);
-                // printf("Job ID %d\n", aJob->job_id);
-                // printf("Memory %d\n", aJob->memory);
-                // printf("Devices %d\n", aJob->devices);
-                // printf("Burst %d\n", aJob->burst);
-                // printf("Priority %d\n", aJob->priority);
-
-
-            } else if (line[0] == 'Q'){
-                fprintf(stdout, "Request for Devices\n");
-
-                int* inputs = parseInput(line);
-                request *aRequest = malloc(sizeof(request));
-
-                aRequest->time = inputs[0];
-                aRequest->job_id = inputs[1];
-                aRequest->devices = inputs[2];
-
-                free(inputs);
-                                
-                // printf("time %d\n", aRequest->time);
-                // printf("job id %d\n", aRequest->job_id);
-                // printf("devices %d\n", aRequest->devices);
-
-            } else if (line[0] == 'L'){
-                fprintf(stdout, "Release of Devices\n");
-
-                int* inputs = parseInput(line);
-                release *aRelease = malloc(sizeof(release));
-                
-                aRelease->time = inputs[0];
-                aRelease->job_id = inputs[1];
-                aRelease->devices = inputs[2];
-
-                free(inputs);
-
-                // printf("time %d\n", aRelease->time);
-                // printf("job id %d\n", aRelease->job_id);
-                // printf("devices %d\n", aRelease->devices);
-
-            } else if (line[0] == 'D'){
-                fprintf(stdout, "System Status\n");
+            } else {
+                if(readyQueue == NULL && runningProc == NULL){
+                    currentTime = 100000;
+                }
             }
+
+            /* SCHEDULING PROCESSES */
+
+            //BEFORE SCHEDULING
+            printf("TIME: %d\n", currentTime);
+            
+            printf("BEFORE\n");
+            printAll();
+
+            // ROUND ROBIN SCHEDULING
+            //take a process off the ready queue and move it to the CPU
+            if(readyQueue && runningProc == NULL){
+                runningProc = readyQueue;
+                readyQueue = readyQueue->next;
+            }
+            if(runningProc){
+                runningProc->proc->running_time += 1;
+                
+                if(runningProc->proc->running_time == runningProc->proc->burst){
+                    //process is done, take off CPU
+                    finishedQueue = appendQueue(runningProc, finishedQueue);
+                    runningProc -> next = NULL;
+                    runningProc = NULL;
+                } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
+                    //quantum is up time to go back to the ready queue
+                    readyQueue = appendQueue(runningProc, readyQueue);
+                    runningProc->next = NULL;
+                    runningProc = NULL;
+                }
+            }
+
+            //AFTER SCHEDULING
+            printf("AFTER\n");
+            printAll();
+            
         }
 
         fclose(file);
     }
+}
+
+process *createProc(job* aJob){
+    process *aProc = malloc(sizeof(process));
+    aProc->pid = aJob->job_id;
+    aProc->arrival_time = aJob->arrival_time;
+    aProc->burst = aJob->burst;
+    aProc->allocated_memory = aJob->memory;
+    aProc->devices = aJob->devices;
+    aProc->waiting_time = 0;
+    aProc->running_time = 0;
+    return aProc;
+}
+
+node *appendQueue(node *aNode, node *head){
+    if(head == NULL){
+        head = aNode;
+    }else{
+        node *curr = head;
+        while(curr != NULL){
+            if(curr->next == NULL){
+                curr->next = aNode;
+                return head;
+            }
+            curr = curr->next;
+        }
+    }
+    return head;
 }
 
 int *parseInput(char* input){
@@ -155,13 +221,13 @@ int *parseInput(char* input){
 //SJF
 void insertHQ1(node *newNode){
     //If no nodes, make head the new node
-    if(headHQ1 == NULL){
-        headHQ1 = newNode;
+    if(holdQueueOne == NULL){
+        holdQueueOne = newNode;
     } else {
-        node* curr = headHQ1;
+        node* curr = holdQueueOne;
         //if new node has shorter burst than current head, place in front
         if(newNode->job->burst < curr->job->burst){
-            headHQ1 = newNode;
+            holdQueueOne = newNode;
             newNode->next = curr;
             return;
         }
@@ -184,13 +250,13 @@ void insertHQ1(node *newNode){
 //FIFO
 void insertHQ2(node* newNode){
     //If no nodes, make head the new node
-    if(headHQ2 == NULL){
-        headHQ2 = newNode;
+    if(holdQueueTwo == NULL){
+        holdQueueTwo = newNode;
     } else {
-        node* curr = headHQ2;
+        node* curr = holdQueueTwo;
         //If new node arrived before current head, place before head
-        if(newNode->job->arrival_time < headHQ2->job->arrival_time){
-            headHQ2 = newNode;
+        if(newNode->job->arrival_time < holdQueueTwo->job->arrival_time){
+            holdQueueTwo = newNode;
             newNode->next = curr;
             return;
         } 
@@ -213,8 +279,41 @@ void insertHQ2(node* newNode){
 void printList(node *head){
     node *temp = head;
 
-    while(temp != NULL){
-        printf("PRINT LIST jobid = %d burst = %d at = %d\n", temp->job->job_id, temp->job->burst, temp->job->arrival_time);
-        temp = temp->next;
+    if(head->job){
+        while(temp != NULL){
+            printf("\tjobid = %d burst = %d at = %d\n", temp->job->job_id, temp->job->burst, temp->job->arrival_time);
+            temp = temp->next;
+        }
+    }
+
+    if(head->proc){
+        while(temp != NULL){
+            printf("\tpid = %d \n", temp->proc->pid);
+            temp = temp->next;
+        }
+    }
+    
+}
+
+void printAll(){
+    /* Print all the Queues */
+    if(holdQueueOne){
+        printf("HQ1\n");
+        printList(holdQueueOne);
+    }
+    if(holdQueueTwo){
+        printf("HQ2\n");
+        printList(holdQueueTwo);
+    }
+    if(readyQueue){
+        printf("Ready Q\n");
+        printList(readyQueue);
+    }
+    if(runningProc){
+        printf("Running pid: %d Time on CPU: %d\n", runningProc->proc->pid, runningProc->proc->running_time);
+    }
+    if(finishedQueue){
+        printf("Finished Q\n");
+        printList(finishedQueue);
     }
 }
