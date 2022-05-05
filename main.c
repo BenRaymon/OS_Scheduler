@@ -1,6 +1,5 @@
 #include "test.h"
 
-
 node *holdQueueOne;
 node *holdQueueTwo;
 
@@ -19,6 +18,8 @@ int main(int argc, char *argv[]) {
     waitingQueue = NULL;
     finishedQueue= NULL;
     runningProc = NULL;
+
+    int* inputs = NULL;
     
     config *systemConfig = malloc(sizeof(config));
 
@@ -31,93 +32,22 @@ int main(int argc, char *argv[]) {
             
             currentTime += 1;
 
-            if(fgets(line,sizeof(line),file)!= NULL){
+            if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
                 /* Process the next line of input from file */
-                if(line[0] == 'C'){
-                    fprintf(stdout, "System Configuration\n");
-                    
-                    int* inputs = parseInput(line);
-
-                    systemConfig->start_time = inputs[0];
-                    systemConfig->total_memory = inputs[1];
-                    systemConfig->available_memory = inputs[1];
-                    systemConfig->devices = inputs[2];
-                    systemConfig->quantum = inputs[3];
-
-                    free(inputs);
-
-                } else if (line[0] == 'A'){
-                    fprintf(stdout, "Job Arrival\n");
-                    
-                    int* inputs = parseInput(line);
-                    job *aJob = malloc(sizeof(job));
-
-                    aJob->arrival_time = inputs[0];
-                    aJob->job_id = inputs[1];
-                    aJob->memory = inputs[2];
-                    aJob->devices = inputs[3];
-                    aJob->burst = inputs[4];
-                    aJob->priority = inputs[5];
-                    
-                    free(inputs);
-
-                    if(aJob->memory > systemConfig->total_memory){
-                        //NOT ENOUGH TOTAL MEMORY
-                    } else if (aJob->devices > systemConfig->devices){
-                        //NOT ENOUGH DEVICES
-                    } else if (aJob->memory <= systemConfig->available_memory){
-                        //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
-                        process *aProc = createProc(aJob);
-                        //after creating the process it has memory allocated to it, must subtract that memory from available
-                        systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory;
-
-                        node *aNode = malloc(sizeof(node)); 
-                        aNode->proc = aProc; 
-                        readyQueue = appendQueue(aNode, readyQueue);
-
-                        //free the job that is no longer needed
-                        free(aJob);
-
-                    } else {
-                        //THERE IS NOT ENOUGH AVAILABLE MEMORY, PUT IN HOLD QUEUE
-                        node *aNode = malloc(sizeof(node));
-                        aNode -> job = aJob;
-
-                        if(aJob->priority == 1){
-                            insertHQ1(aNode);
-                        } else if (aJob->priority == 2){
-                            insertHQ2(aNode);
-                        }
-                    }
-                } else if (line[0] == 'Q'){
-                    fprintf(stdout, "Request for Devices\n");
-
-                    int* inputs = parseInput(line);
-                    request *aRequest = malloc(sizeof(request));
-
-                    aRequest->time = inputs[0];
-                    aRequest->job_id = inputs[1];
-                    aRequest->devices = inputs[2];
-
-                    free(inputs); 
-
-                } else if (line[0] == 'L'){
-                    fprintf(stdout, "Release of Devices\n");
-
-                    int* inputs = parseInput(line);
-                    release *aRelease = malloc(sizeof(release));
-                    
-                    aRelease->time = inputs[0];
-                    aRelease->job_id = inputs[1];
-                    aRelease->devices = inputs[2];
-
-                    free(inputs);
-
-                } else if (line[0] == 'D'){
-                    fprintf(stdout, "System Status\n");
+                inputs = parseInput(line);
+                if(inputs[1] > currentTime && inputs[1] != 9999){
+                    //SKIP BECAUSE IT ISN'T TIME TO READ THIS INPUT YET
+                } else {
+                    test(inputs, systemConfig);
+                    inputs = NULL;
                 }
-            } else {
-                if(readyQueue == NULL && runningProc == NULL){
+            } else if (inputs && inputs[1] <= currentTime){
+                //DO THE WHOLE INPUTS THING
+                test(inputs, systemConfig);
+                inputs = NULL;
+            }
+            else {
+                if(readyQueue == NULL && runningProc == NULL && inputs == NULL){
                     currentTime = 100000;
                 }
             }
@@ -141,12 +71,14 @@ int main(int argc, char *argv[]) {
                 
                 if(runningProc->proc->running_time == runningProc->proc->burst){
                     //process is done, take off CPU
-                    finishedQueue = appendQueue(runningProc, finishedQueue);
+                    //finishedQueue = appendQueue(runningProc, finishedQueue);
+                    appendQueue(&finishedQueue, runningProc);
                     runningProc -> next = NULL;
                     runningProc = NULL;
                 } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
                     //quantum is up time to go back to the ready queue
-                    readyQueue = appendQueue(runningProc, readyQueue);
+                    //readyQueue = appendQueue(runningProc, readyQueue);
+                    appendQueue(&readyQueue,runningProc);
                     runningProc->next = NULL;
                     runningProc = NULL;
                 }
@@ -161,6 +93,97 @@ int main(int argc, char *argv[]) {
         fclose(file);
     }
 }
+void test(int *inputs, config *systemConfig){
+    if(inputs[0] == 'C'){
+        fprintf(stdout, "System Configuration\n");
+
+        systemConfig->start_time = inputs[1];
+        systemConfig->total_memory = inputs[2];
+        systemConfig->available_memory = inputs[2];
+        systemConfig->devices = inputs[3];
+        systemConfig->quantum = inputs[4];
+
+        free(inputs);
+        inputs = NULL;
+
+    } else if (inputs[0] == 'A'){
+        fprintf(stdout, "Job Arrival\n");
+        
+        job *aJob = malloc(sizeof(job));
+
+        aJob->arrival_time = inputs[1];
+        aJob->job_id = inputs[2];
+        aJob->memory = inputs[3];
+        aJob->devices = inputs[4];
+        aJob->burst = inputs[5];
+        aJob->priority = inputs[6];
+        
+        free(inputs);
+        inputs = NULL;
+
+        if(aJob->memory > systemConfig->total_memory){
+            //NOT ENOUGH TOTAL MEMORY
+        } else if (aJob->devices > systemConfig->devices){
+            //NOT ENOUGH DEVICES
+        } else if (aJob->memory <= systemConfig->available_memory){
+            //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
+            process *aProc = createProc(aJob);
+            //after creating the process it has memory allocated to it, must subtract that memory from available
+            systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory;
+
+            node *aNode = malloc(sizeof(node)); 
+            aNode->proc = aProc; 
+            
+            //readyQueue = appendQueue(aNode, readyQueue);
+            appendQueue(&readyQueue, aNode);
+
+            //free the job that is no longer needed
+            free(aJob);
+
+        } else {
+            //THERE IS NOT ENOUGH AVAILABLE MEMORY, PUT IN HOLD QUEUE
+            node *aNode = malloc(sizeof(node));
+            aNode -> job = aJob;
+
+            if(aJob->priority == 1){
+                insertHQ1(aNode);
+            } else if (aJob->priority == 2){
+                insertHQ2(aNode);
+            }
+        }
+
+        
+    } else if (inputs[0] == 'Q'){
+        fprintf(stdout, "Request for Devices\n");
+
+        request *aRequest = malloc(sizeof(request));
+
+        aRequest->time = inputs[1];
+        aRequest->job_id = inputs[2];
+        aRequest->devices = inputs[3];
+
+        free(inputs); 
+        inputs = NULL;
+
+    } else if (inputs[0] == 'L'){
+        fprintf(stdout, "Release of Devices\n");
+
+        release *aRelease = malloc(sizeof(release));
+        
+        aRelease->time = inputs[1];
+        aRelease->job_id = inputs[2];
+        aRelease->devices = inputs[3];
+
+        free(inputs);
+        inputs = NULL;
+
+    } else if (inputs[0] == 'D'){
+        fprintf(stdout, "System Status\n");
+    }
+
+    //return systemConfig;
+}
+
 
 process *createProc(job* aJob){
     process *aProc = malloc(sizeof(process));
@@ -174,20 +197,16 @@ process *createProc(job* aJob){
     return aProc;
 }
 
-node *appendQueue(node *aNode, node *head){
-    if(head == NULL){
-        head = aNode;
+void appendQueue(node **head, node *aNode){
+    if(*head == NULL){
+        *head = aNode;
     }else{
-        node *curr = head;
-        while(curr != NULL){
-            if(curr->next == NULL){
-                curr->next = aNode;
-                return head;
-            }
+        node *curr = *head;
+        while(curr->next != NULL){
             curr = curr->next;
         }
+        curr->next = aNode;
     }
-    return head;
 }
 
 int *parseInput(char* input){
@@ -195,11 +214,13 @@ int *parseInput(char* input){
     char* subtext = malloc(sizeof(char) * 10); 
     int* inputs = malloc(7 * sizeof(int));
 
-    int counter = 0;
+    inputs[0] = input[0];
+
+    int counter = 1;
     //Split input string by space character
     while (token = strtok(0, " ")) {
 
-        if (counter == 0){
+        if (counter == 1){
             //first input is always just an integer
             inputs[counter] = atoi(token);
         } else {

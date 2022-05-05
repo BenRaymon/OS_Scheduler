@@ -50,8 +50,10 @@ typedef struct release {
     int devices;
 } release;
 
+void test(int* inputs, config *systemConfig);
+
 process *createProc(job *aJob);
-node *appendQueue(node *aNode, node *head);
+void appendQueue(node **head, node *aNode);
 
 int* parseInput(char* input);
 
