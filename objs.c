@@ -7,8 +7,9 @@ process *createProc(job* aJob){
     aProc->burst = aJob->burst;
     aProc->allocated_memory = aJob->memory;
     aProc->devices = aJob->devices;
-    aProc->waiting_time = 0;
     aProc->running_time = 0;
+    aProc->wait_time = 0;
+    aProc->turnaround_time = 0;
     return aProc;
 }
 

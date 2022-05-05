@@ -36,15 +36,15 @@ int main(int argc, char *argv[]) {
 
             //BEFORE SCHEDULING
             printf("TIME: %d\n", currentTime);
-            printf("BEFORE\n");
-            printAll();
+            //printf("BEFORE\n");
+            //printAll();
 
             // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
             roundRobin(systemConfig);
 
             //AFTER SCHEDULING
-            printf("AFTER\n");
-            printAll();
+            //printf("AFTER\n");
+            //printAll();
 
             /* Process the next line of input from file */
             if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
@@ -66,8 +66,9 @@ int main(int argc, char *argv[]) {
                     currentTime = 100000;
                 }
             }
+            
+            printAllJobs();
         }
-
         fclose(file);
     }
 }
@@ -86,6 +87,10 @@ void roundRobin(config *systemConfig){
         if(runningProc->proc->running_time == runningProc->proc->burst){
             //process is done, take off CPU
             appendQueue(&finishedQueue, runningProc);
+            runningProc->proc->completion_time = currentTime;
+            runningProc->proc->turnaround_time = currentTime - runningProc->proc->arrival_time;
+            runningProc->proc->wait_time = runningProc->proc->turnaround_time - runningProc->proc->running_time;
+
             runningProc -> next = NULL;
             runningProc = NULL;
         } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
@@ -208,21 +213,25 @@ int *parseInput(char* input){
 
 
 
-void printList(node *head){
+void printQueue(node *head){
     node *temp = head;
 
     if(head->job){
+        printf("\tJob IDs: ");
         while(temp != NULL){
-            printf("\tjobid = %d burst = %d at = %d\n", temp->job->job_id, temp->job->burst, temp->job->arrival_time);
+            printf("%d ", temp->job->job_id);
             temp = temp->next;
         }
+        printf("\n");
     }
 
     if(head->proc){
+        printf("\tPIDs: ");
         while(temp != NULL){
-            printf("\tpid = %d \n", temp->proc->pid);
+            printf("%d ", temp->proc->pid);
             temp = temp->next;
         }
+        printf("\n");
     }
     
 }
@@ -230,24 +239,79 @@ void printList(node *head){
 
 
 /* Print all the Queues */
-void printAll(){
+void printAllQueues(){
     if(holdQueueOne){
-        printf("HQ1\n");
-        printList(holdQueueOne);
+        printf("Hold Queue One\n");
+        printQueue(holdQueueOne);
     }
     if(holdQueueTwo){
-        printf("HQ2\n");
-        printList(holdQueueTwo);
+        printf("Hold Queue Two\n");
+        printQueue(holdQueueTwo);
     }
     if(readyQueue){
-        printf("Ready Q\n");
-        printList(readyQueue);
+        printf("Ready Queue\n");
+        printQueue(readyQueue);
     }
-    if(runningProc){
-        printf("Running pid: %d Time on CPU: %d\n", runningProc->proc->pid, runningProc->proc->running_time);
+    if(waitingQueue){
+        printf("Wait Queue\n");
+        printQueue(readyQueue);
     }
     if(finishedQueue){
-        printf("Finished Q\n");
-        printList(finishedQueue);
+        printf("Completed Queue\n");
+        printQueue(finishedQueue);
     }
+}
+
+
+void printAllJobs(){
+    
+    printf("PRINTING CONTENTS OF EACH QUEUE\n");
+    printAllQueues();
+
+    printf("PRINTING ALL JOBS\n");
+
+    printf("Unfinished Jobs: \n");
+    node *temp = holdQueueOne;
+    while(temp != NULL){
+        printf("\tJob ID: %d State: Hold Queue1 Remaining Time: %d\n",
+            temp->job->job_id, temp->job->burst);
+        temp = temp->next;
+    }
+
+    temp = holdQueueTwo;
+    while(temp != NULL){
+        printf("\tJob ID: %d State: Hold Queue2 Remaining Time: %d\n",
+            temp->job->job_id, temp->job->burst);
+        temp = temp->next;
+    }
+
+    temp = waitingQueue;
+    while(temp != NULL){
+        printf("\tJob ID: %d State: Wait Queue  Remaining Time: %d\n",
+            temp->proc->pid, temp->proc->burst - temp->proc->running_time);
+        temp = temp->next;
+    }
+    
+    temp = readyQueue;
+    while(temp != NULL){
+        printf("\tJob ID: %d State: Ready Queue Remaining Time: %d\n",
+            temp->proc->pid, temp->proc->burst - temp->proc->running_time);
+        temp = temp->next;
+    }
+
+    
+    if(runningProc){
+        printf("\tJob ID: %d State: Running CPU Remaining Time: %d\n",
+            runningProc->proc->pid, runningProc->proc->burst - runningProc->proc->running_time);
+    }
+
+    printf("Completed Jobs: \n");
+    temp = finishedQueue;
+    while(temp != NULL){
+        printf("\tJob ID: %d State: finished at time %d Turnaround Time: %d Waiting Time: %d\n",
+            temp->proc->pid, temp->proc->completion_time, temp->proc->turnaround_time, temp->proc->wait_time);
+        temp = temp->next;
+    }
+
+
 }

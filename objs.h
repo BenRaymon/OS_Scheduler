@@ -18,7 +18,8 @@ typedef struct process {
     int running_time;
     int arrival_time;
     int completion_time;
-    int waiting_time;
+    int wait_time;
+    int turnaround_time;
     int allocated_memory;
     int devices;
 } process;

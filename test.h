@@ -3,7 +3,8 @@
 void processInputEvent(int* inputs, config *systemConfig);
 int* parseInput(char* input);
 
-void printList(node* head);
-void printAll();
+void printQueue(node* head);
+void printAllQueues();
+void printAllJobs();
 
 void roundRobin(config *systemConfig);
