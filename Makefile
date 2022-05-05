@@ -8,3 +8,6 @@ objs.o: objs.c objs.h
 
 queues.o: queues.c queues.h
 	gcc -c queues.c
+
+clean:
+	rm *.o os
