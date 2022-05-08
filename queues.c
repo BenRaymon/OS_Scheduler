@@ -70,3 +70,46 @@ void insertFIFO(node **head, node *newNode){
         return;
     }
 }
+
+//finds the first node in linked list with a required memory that is less than or equal to the available system memory
+//returns the first node that can be removed from HQ to RQ
+node *findNode(node** head_ref, config *systemConfig)
+{
+    // Store head node
+    node *temp = *head_ref;
+ 
+    // Search for the first process that can be put on the CPU
+    while (temp != NULL && temp->job->memory > systemConfig->available_memory) {
+        temp = temp->next;
+    }
+
+    return temp;
+}
+
+//removes a node that has a job with specific ID from linked list
+// returns the job of the node that is returned
+job *deleteJobNode(node** head_ref, int keyID)
+{
+    node *temp = *head_ref;
+    node *prev;
+
+    if (temp != NULL && temp->job->job_id == keyID) {
+        job *aJob = temp->job;
+        *head_ref = temp->next;
+        free(temp);
+        return aJob;
+    }
+ 
+    while (temp != NULL && temp->job->job_id != keyID) {
+        prev = temp;
+        temp = temp->next;
+    }
+ 
+    if (temp == NULL)
+        return NULL;
+ 
+    prev->next = temp->next;
+    job *aJob = temp->job;
+    free(temp); 
+    return aJob;
+}

@@ -7,6 +7,7 @@ node *readyQueue;
 node *waitingQueue;
 node *finishedQueue;
 node *runningProc;
+//node *incomingRequests;
 
 int main(int argc, char *argv[]) {
 
@@ -14,10 +15,13 @@ int main(int argc, char *argv[]) {
 
     holdQueueOne = NULL;
     holdQueueTwo = NULL;
+
     readyQueue = NULL;
     waitingQueue = NULL;
     finishedQueue= NULL;
+    
     runningProc = NULL;
+    //incomingRequests = NULL;
 
     
     config *systemConfig = malloc(sizeof(config));
@@ -31,20 +35,6 @@ int main(int argc, char *argv[]) {
         while(currentTime < 9999){
             
             currentTime += 1;
-
-            /* SCHEDULING PROCESSES */
-
-            //BEFORE SCHEDULING
-            printf("TIME: %d\n", currentTime);
-            //printf("BEFORE\n");
-            //printAll();
-
-            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
-            roundRobin(systemConfig);
-
-            //AFTER SCHEDULING
-            //printf("AFTER\n");
-            //printAll();
 
             /* Process the next line of input from file */
             if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
@@ -66,11 +56,55 @@ int main(int argc, char *argv[]) {
                     currentTime = 100000;
                 }
             }
+
+            /* CHECK HOLD QUEUES */
+            // Can any jobs in HQ be moved to ready queue?
+            // If yes, remove node from HQ and move to ready queue
+            //HQ1 higher priority, search HQ1 first then HQ2
+            node *tempNode;
+            tempNode = findNode(&holdQueueOne, systemConfig);
+            if(tempNode){
+                job *aJob = deleteJobNode(&holdQueueOne, tempNode->job->job_id);
+                if(aJob){
+                    moveJobToReadyQueue(aJob, systemConfig);
+                    tempNode->job = NULL;
+                }
+            }
+
+            tempNode = findNode(&holdQueueTwo, systemConfig);
+            if(tempNode){
+                job *aJob = deleteJobNode(&holdQueueTwo, tempNode->job->job_id);
+                if(aJob){
+                    moveJobToReadyQueue(aJob, systemConfig);
+                    tempNode->job = NULL;
+                }
+            }
             
+
+            /* SCHEDULE PROCESSES */
+            //BEFORE SCHEDULING
+            printf("TIME: %d\n", currentTime);
+            printf("BEFORE\n");
             printAllJobs();
+            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
+            roundRobin(systemConfig);
+            //AFTER SCHEDULING
+            printf("AFTER\n");
+            printAllJobs();
+           
         }
         fclose(file);
     }
+}
+
+
+void moveJobToReadyQueue(job *aJob, config *systemConfig){
+    process *aProc = createProc(aJob); //create proc for this job
+    node *aNode = malloc(sizeof(node)); //create new node
+    aNode->proc = aProc; //set the proc of the node
+    free(aJob); //free the job that is no longer needed
+    systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory; //reduce system mem accordingly
+    appendQueue(&readyQueue, aNode); //add node to ready queue
 }
 
 //ROUND ROBIN SCHEDULING ALGORITHM
@@ -90,14 +124,28 @@ void roundRobin(config *systemConfig){
             runningProc->proc->completion_time = currentTime;
             runningProc->proc->turnaround_time = currentTime - runningProc->proc->arrival_time;
             runningProc->proc->wait_time = runningProc->proc->turnaround_time - runningProc->proc->running_time;
+            systemConfig->available_memory += runningProc->proc->allocated_memory;
 
             runningProc -> next = NULL;
             runningProc = NULL;
+
+            //put new proc on CPU
+            if(readyQueue){
+                runningProc = readyQueue;
+                readyQueue = readyQueue->next;
+            }
+
         } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
             //quantum is up, time to go back to the ready queue
             appendQueue(&readyQueue,runningProc);
             runningProc->next = NULL;
             runningProc = NULL;
+
+            //put new proc on CPU
+            if(readyQueue){
+                runningProc = readyQueue;
+                readyQueue = readyQueue->next;
+            }
         }
     }
 }
@@ -133,17 +181,7 @@ void processInputEvent(int *inputs, config *systemConfig){
             //NOT ENOUGH DEVICES
         } else if (aJob->memory <= systemConfig->available_memory){
             //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
-            process *aProc = createProc(aJob);
-            //after creating the process it has memory allocated to it, must subtract that memory from available
-            systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory;
-
-            node *aNode = malloc(sizeof(node)); 
-            aNode->proc = aProc; 
-            
-            appendQueue(&readyQueue, aNode);
-
-            //free the job that is no longer needed
-            free(aJob);
+            moveJobToReadyQueue(aJob, systemConfig);
 
         } else {
             //THERE IS NOT ENOUGH AVAILABLE MEMORY, PUT IN HOLD QUEUE
@@ -163,6 +201,7 @@ void processInputEvent(int *inputs, config *systemConfig){
 
         //Create request
         request *aRequest = createRequest(inputs);
+        //appendQueue(&incomingRequests, aRequest);
 
         free(inputs); 
         inputs = NULL;
