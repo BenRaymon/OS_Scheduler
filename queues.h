@@ -7,4 +7,5 @@ void insertFIFO(node **head, node *newNode);
 
 node *findNode(node **head, config *systemConfig);
 job *deleteJobNode(node **head, int keyID);
+
 void moveJobToReadyQueue(job *aJob, config *systemConfig);

@@ -14,6 +14,8 @@ void appendQueue(node **head, node *aNode){
 }
 
 //SJF
+//insert node to a linked list sorted by shortest job first 
+//insert function for HQ1
 void insertSJF(node **head, node *newNode){
     //If no nodes, make head the new node
     if(*head == NULL){
@@ -43,6 +45,8 @@ void insertSJF(node **head, node *newNode){
 }
 
 //FIFO
+//insert node to a linked list sorted by arrival time
+//insert for HQ2
 void insertFIFO(node **head, node *newNode){
     //If no nodes, make head the new node
     if(*head == NULL){
@@ -72,7 +76,7 @@ void insertFIFO(node **head, node *newNode){
 }
 
 //finds the first node in linked list with a required memory that is less than or equal to the available system memory
-//returns the first node that can be removed from HQ to RQ
+//returns the first node that can be moved from HQ to RQ
 node *findNode(node** head_ref, config *systemConfig)
 {
     // Store head node
@@ -87,7 +91,7 @@ node *findNode(node** head_ref, config *systemConfig)
 }
 
 //removes a node that has a job with specific ID from linked list
-// returns the job of the node that is returned
+// returns the job of the node that is removed
 job *deleteJobNode(node** head_ref, int keyID)
 {
     node *temp = *head_ref;

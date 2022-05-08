@@ -58,8 +58,8 @@ int main(int argc, char *argv[]) {
             }
 
             /* CHECK HOLD QUEUES */
-            // Can any jobs in HQ be moved to ready queue?
-            // If yes, remove node from HQ and move to ready queue
+            // Can any jobs in HQ be moved to RQ?
+            // If yes, remove node from HQ and move to RQ
             //HQ1 higher priority, search HQ1 first then HQ2
             node *tempNode;
             tempNode = findNode(&holdQueueOne, systemConfig);
@@ -97,7 +97,9 @@ int main(int argc, char *argv[]) {
     }
 }
 
-
+//create a process for a given job
+//create node to hold process
+//add new node to ready queue
 void moveJobToReadyQueue(job *aJob, config *systemConfig){
     process *aProc = createProc(aJob); //create proc for this job
     node *aNode = malloc(sizeof(node)); //create new node
@@ -108,6 +110,10 @@ void moveJobToReadyQueue(job *aJob, config *systemConfig){
 }
 
 //ROUND ROBIN SCHEDULING ALGORITHM
+//if no running proc, moves proc from RQ to CPU
+//gives proc on CPU one tick
+//removes proc from CPU if quantum up or execution is complete
+//  if proc is removed from CPU, new proc is put on CPU
 void roundRobin(config *systemConfig){
     //take a process off the ready queue and move it to the CPU
     if(readyQueue && runningProc == NULL){
@@ -151,7 +157,7 @@ void roundRobin(config *systemConfig){
 }
 
 
-
+//create the necessary objects based on the input event
 void processInputEvent(int *inputs, config *systemConfig){
     if(inputs[0] == 'C'){
         fprintf(stdout, "System Configuration\n");
@@ -220,7 +226,7 @@ void processInputEvent(int *inputs, config *systemConfig){
     }
 }
 
-
+//return array of integers for a given string input line
 int *parseInput(char* input){
     char* token = strtok(input, " ");
     char* subtext = malloc(sizeof(char) * 10); 
@@ -251,7 +257,7 @@ int *parseInput(char* input){
 }
 
 
-
+// print contents of given queue
 void printQueue(node *head){
     node *temp = head;
 
@@ -301,7 +307,7 @@ void printAllQueues(){
     }
 }
 
-
+//print everything -- all information
 void printAllJobs(){
     
     printf("PRINTING CONTENTS OF EACH QUEUE\n");
