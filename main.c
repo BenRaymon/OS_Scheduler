@@ -69,12 +69,12 @@ int main(int argc, char *argv[]) {
             //BEFORE SCHEDULING
             printf("TIME: %d\n", currentTime);
             printf("BEFORE\n");
-            printAllJobs();
+            printAllQueues(systemConfig);
             // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
             roundRobin(systemConfig);
             //AFTER SCHEDULING
             printf("AFTER\n");
-            printAllJobs();
+            printAllQueues(systemConfig);
 
 
             //CHECK FOR INCOMING RELEASES
@@ -122,7 +122,6 @@ void moveJobToReadyQueue(job *aJob, config *systemConfig){
     process *aProc = createProc(aJob); //create proc for this job
     node *aNode = malloc(sizeof(node)); //create new node
     aNode->proc = aProc; //set the proc of the node
-    free(aJob); //free the job that is no longer needed
     systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory; //reduce system mem accordingly
     appendQueue(&readyQueue, aNode); //add node to ready queue
 }
@@ -308,81 +307,30 @@ void printQueue(node *head){
 
 
 /* Print all the Queues */
-void printAllQueues(){
-    if(holdQueueOne){
-        printf("Hold Queue One\n");
-        printQueue(holdQueueOne);
-    }
-    if(holdQueueTwo){
-        printf("Hold Queue Two\n");
-        printQueue(holdQueueTwo);
-    }
-    if(readyQueue){
-        printf("Ready Queue\n");
-        printQueue(readyQueue);
-    }
-    if(waitingQueue){
-        printf("Wait Queue\n");
-        printQueue(readyQueue);
-    }
-    if(finishedQueue){
-        printf("Completed Queue\n");
-        printQueue(finishedQueue);
-    }
-}
+void printAllQueues(config *systemConfig){
 
-//print everything -- all information
-void printAllJobs(){
+    printf("At time %d: \n", currentTime);
+    printf("Current Available Main Memory=%d\n", systemConfig->available_memory);
+    printf("Current Devices=%d\n", systemConfig->available_devices);
+
+    printf("\nCompleted Jobs: \n");
+    printFinishedJobs(finishedQueue);
     
-    printf("PRINTING CONTENTS OF EACH QUEUE\n");
-    printAllQueues();
+    printf("\nHold Queue 1:\n");
+    printJobQueue(holdQueueOne);
 
-    printf("PRINTING ALL JOBS\n");
+    printf("\nHold Queue 2:\n");
+    printJobQueue(holdQueueTwo);
 
-    printf("Unfinished Jobs: \n");
-    node *temp = holdQueueOne;
-    while(temp != NULL){
-        printf("\tJob ID: %d State: Hold Queue1 Remaining Time: %d\n",
-            temp->job->job_id, temp->job->burst);
-        temp = temp->next;
-    }
+    printf("\nReady Queue: \n");
+    printProcQueue(readyQueue);
 
-    temp = holdQueueTwo;
-    while(temp != NULL){
-        printf("\tJob ID: %d State: Hold Queue2 Remaining Time: %d\n",
-            temp->job->job_id, temp->job->burst);
-        temp = temp->next;
-    }
+    printf("\nProcess running on CPU: \n");
+    printRunningProc(runningProc);
 
-    temp = waitingQueue;
-    while(temp != NULL){
-        printf("\tJob ID: %d State: Wait Queue  Remaining Time: %d\n",
-            temp->proc->pid, temp->proc->burst - temp->proc->running_time);
-        temp = temp->next;
-    }
+    printf("\nWait Queue: \n");
+    printProcQueue(readyQueue);
     
-    temp = readyQueue;
-    while(temp != NULL){
-        printf("\tJob ID: %d State: Ready Queue Remaining Time: %d\n",
-            temp->proc->pid, temp->proc->burst - temp->proc->running_time);
-        temp = temp->next;
-    }
-
-    
-    if(runningProc){
-        printf("\tJob ID: %d State: Running CPU Remaining Time: %d\n",
-            runningProc->proc->pid, runningProc->proc->burst - runningProc->proc->running_time);
-    }
-
-    printf("Completed Jobs: \n");
-    temp = finishedQueue;
-    while(temp != NULL){
-        printf("\tJob ID: %d State: finished at time %d Turnaround Time: %d Waiting Time: %d\n",
-            temp->proc->pid, temp->proc->completion_time, temp->proc->turnaround_time, temp->proc->wait_time);
-        temp = temp->next;
-    }
-
-
 }
 
 // SAFETY ALGORITHM

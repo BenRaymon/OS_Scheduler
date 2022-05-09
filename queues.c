@@ -87,7 +87,9 @@ node *findNode(node** head_ref, config *systemConfig)
         temp = temp->next;
     }
 
-    return temp;
+    if(temp)
+        return temp;
+    else return NULL;
 }
 
 //removes a node that has a job with specific ID from linked list
@@ -116,4 +118,53 @@ job *deleteJobNode(node** head_ref, int keyID)
     job *aJob = temp->job;
     free(temp); 
     return aJob;
+}
+
+void printJobQueue(node *head){
+    node *temp = head;
+
+    printf("-------------------------\n");
+    printf("Job ID    Run Time\n");
+    printf("=========================\n");
+    while(temp != NULL){
+        printf("  %d \t     %d\n", temp->job->job_id, temp->job->burst);
+        temp = temp->next;
+    }
+    
+}
+
+void printProcQueue(node *head){
+    node *temp = head;
+
+    printf("----------------------------------\n");
+    printf("Job ID    Run Time    Time Accrued\n");
+    printf("==================================\n");
+    while(temp != NULL){
+        printf("  %d \t      %d \t  %d\n", temp->proc->pid, temp->proc->burst, temp->proc->running_time);
+        temp = temp->next;
+    }
+}
+
+void printFinishedJobs(node *head){
+    node *temp = head;
+
+    printf("--------------------------------------------------------\n");
+    printf("Job ID    Arrival Time    Finish Time    Turnaround Time\n");
+    printf("========================================================\n");
+    while(temp != NULL){
+        printf("  %d \t       %d \t      %d \t       %d\n", temp->proc->pid, temp->proc->arrival_time, temp->proc->completion_time, temp->proc->turnaround_time);
+        temp = temp->next;
+    }
+}
+
+void printRunningProc(node *head){
+    node *temp = head;
+
+    printf("-----------------------------------\n");
+    printf("Job ID    Time Accrued    Time Left\n");
+    printf("===================================\n");
+    while(temp != NULL){
+        printf("  %d \t      %d \t  %d\n", temp->proc->pid, temp->proc->running_time, temp->proc->burst - temp->proc->running_time);
+        temp = temp->next;
+    }
 }
