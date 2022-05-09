@@ -4,7 +4,6 @@ void processInputEvent(int* inputs, config *systemConfig);
 int* parseInput(char* input);
 
 void printQueue(node* head);
-void printAllQueues();
-void printAllJobs();
+void printAllQueues(config *systemConfig);
 
 void roundRobin(config *systemConfig);
