@@ -7,9 +7,11 @@ process *createProc(job* aJob){
     aProc->burst = aJob->burst;
     aProc->allocated_memory = aJob->memory;
     aProc->devices = aJob->devices;
+    aProc->allocated_devices = 0;
     aProc->running_time = 0;
     aProc->wait_time = 0;
     aProc->turnaround_time = 0;
+    aProc->request = NULL;
     return aProc;
 }
 
@@ -27,7 +29,7 @@ job *createJob(int* inputs){
 request *createRequest(int* inputs){
     request *aRequest = malloc(sizeof(request));
     aRequest->time = inputs[1];
-    aRequest->job_id = inputs[2];
+    aRequest->id = inputs[2];
     aRequest->devices = inputs[3];
     return aRequest;
 }
@@ -35,7 +37,7 @@ request *createRequest(int* inputs){
 release *createRelease(int* inputs){
     release *aRelease = malloc(sizeof(release));
     aRelease->time = inputs[1];
-    aRelease->job_id = inputs[2];
+    aRelease->id = inputs[2];
     aRelease->devices = inputs[3];
     return aRelease;
 }

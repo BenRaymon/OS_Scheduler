@@ -3,6 +3,18 @@
 #include <string.h>
 #include <malloc.h>
 
+typedef struct request {
+    int id;
+    int time;
+    int devices;
+} request;
+
+typedef struct release {
+    int id;
+    int time;
+    int devices;
+} release;
+
 typedef struct job {
     int arrival_time;
     int job_id;
@@ -22,6 +34,8 @@ typedef struct process {
     int turnaround_time;
     int allocated_memory;
     int devices;
+    int allocated_devices;
+    request *request;
 } process;
 
 typedef struct node{
@@ -34,21 +48,10 @@ typedef struct configuration {
     int start_time;
     int total_memory;
     int available_memory;
-    int devices;
+    int total_devices;
+    int available_devices;
     int quantum;
 } config;
-
-typedef struct request {
-    int job_id;
-    int time;
-    int devices;
-} request;
-
-typedef struct release {
-    int job_id;
-    int time;
-    int devices;
-} release;
 
 job* createJob(int* inputs);
 request* createRequest(int* inputs);

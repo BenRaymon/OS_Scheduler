@@ -57,6 +57,34 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+
+            //CHECK IF THERE ARE ANY INCOMING REQUESTS
+            //CHECK IF THE INCOMING REQUESTS ARE FOR THE CURRENT PROCESS ON THE CPU
+            //CHECK IF THE REQUEST CAN BE GRANTED USING BANKERS
+                //GRANT THE REQUEST AND ALLOW THE PROC TO EXECUTE ON THE CPU
+                //DENY THE REQUEST AND MOVE PROC TO WAIT QUEUE
+
+
+            /* SCHEDULE PROCESSES */
+            //BEFORE SCHEDULING
+            printf("TIME: %d\n", currentTime);
+            printf("BEFORE\n");
+            printAllJobs();
+            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
+            roundRobin(systemConfig);
+            //AFTER SCHEDULING
+            printf("AFTER\n");
+            printAllJobs();
+
+
+            //CHECK FOR INCOMING RELEASES
+            //RELEASE DEVICES
+
+
+            //CHECK IF ANY PROC IN THE WAIT QUEUE CAN BE MOVED TO READY QUEUE
+
+            
+
             /* CHECK HOLD QUEUES */
             // Can any jobs in HQ be moved to RQ?
             // If yes, remove node from HQ and move to RQ
@@ -79,18 +107,8 @@ int main(int argc, char *argv[]) {
                     tempNode->job = NULL;
                 }
             }
-            
 
-            /* SCHEDULE PROCESSES */
-            //BEFORE SCHEDULING
-            printf("TIME: %d\n", currentTime);
-            printf("BEFORE\n");
-            printAllJobs();
-            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
-            roundRobin(systemConfig);
-            //AFTER SCHEDULING
-            printf("AFTER\n");
-            printAllJobs();
+            printf("IS IT SAFE? %d", isSafe(systemConfig));
            
         }
         fclose(file);
@@ -166,7 +184,8 @@ void processInputEvent(int *inputs, config *systemConfig){
         systemConfig->start_time = inputs[1];
         systemConfig->total_memory = inputs[2];
         systemConfig->available_memory = inputs[2];
-        systemConfig->devices = inputs[3];
+        systemConfig->available_devices = inputs[3];
+        systemConfig->total_devices = inputs[3];
         systemConfig->quantum = inputs[4];
 
         free(inputs);
@@ -177,14 +196,14 @@ void processInputEvent(int *inputs, config *systemConfig){
         
         //Create Job
         job *aJob = createJob(inputs);
-        
+
         free(inputs);
         inputs = NULL;
 
         if(aJob->memory > systemConfig->total_memory){
             //NOT ENOUGH TOTAL MEMORY
-        } else if (aJob->devices > systemConfig->devices){
-            //NOT ENOUGH DEVICES
+        } else if (aJob->devices > systemConfig->total_devices){
+            //NOT ENOUGH TOTAL DEVICES
         } else if (aJob->memory <= systemConfig->available_memory){
             //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
             moveJobToReadyQueue(aJob, systemConfig);
@@ -207,7 +226,12 @@ void processInputEvent(int *inputs, config *systemConfig){
 
         //Create request
         request *aRequest = createRequest(inputs);
-        //appendQueue(&incomingRequests, aRequest);
+
+        //set the request pointer of the proc to the incoming request
+        if(runningProc && runningProc->proc->pid == aRequest->id){
+            //this should always be the case anyway
+            runningProc->proc->request = aRequest;
+        }
 
         free(inputs); 
         inputs = NULL;
@@ -359,4 +383,105 @@ void printAllJobs(){
     }
 
 
+}
+
+// SAFETY ALGORITHM
+// LISTS WITH PROCESSES --> ready queue and wait queue
+// finishReady = array of integers the length of the ready queue
+// finishWork = array of integers the length of the wait queue
+// 
+// let work = systems available devices
+// while found keep looping (keep checking if there is a proc that can be allocated devices)
+// found = false
+// loop thru # of elements in RQ
+    //finishR[i] = false and then if need (devices - allocated_devices) <= work
+        // work = work + node->proc->allocated_devices
+        // finishR[i] = true
+        // found = true
+    // RQNode = -> next
+// loop thru # of el in WQ
+    //finishW[i] = false and then if need (devices - allocated_devices) <= work
+        // work = work + node->proc->allocated_devices
+        // finishW[i] = true
+        // found = true
+    // WQNode = -> next
+//Once there are no more processes that are found, check if every proc finished
+//loop thru the larger number of elements
+// if i < HQ count
+    // if finishedR[i] = false then isSafe = false
+// if i < WQ count
+    // if finishedW[i] = false then isSafe = false
+//return isSafe
+
+int isSafe(config *systemConfig){
+    int RQlen = 0, WQlen = 0;
+
+    node *temp = readyQueue;
+    while(temp != NULL){
+        if(temp->proc->pid == 1)
+            temp->proc->allocated_devices = 5;
+        if(temp->proc->pid == 2)
+            temp->proc->allocated_devices = 0;
+        if(temp->proc->pid == 3)
+            temp->proc->allocated_devices = 2;
+        temp = temp->next;
+        RQlen += 1;
+    }
+    temp = waitingQueue;
+    while(temp != NULL){
+        temp = temp->next;
+        WQlen += 1;
+    }
+
+    int finishRQ[RQlen], finishWQ[WQlen];
+    for(int i = 0; i < RQlen; i+=1){
+        finishRQ[i] = false;
+    }
+    for(int i = 0; i < WQlen; i+=1){
+        finishWQ[i] = false;
+    }
+    int work = systemConfig->available_devices;
+    bool found = true;
+
+    while(found){
+        found = false;
+        
+        temp = readyQueue;
+        
+        for(int i = 0; i < RQlen; i++){
+            if(finishRQ[i] == false && temp && temp->proc->devices - temp->proc->allocated_devices <= work){
+                found = true;
+                work = work + temp->proc->allocated_devices;
+                finishRQ[i] = true;
+            }
+            temp = temp->next;
+        }
+
+        temp = waitingQueue;
+
+        for(int i = 0; i < WQlen; i+=1){
+            if(finishWQ[i] == false && temp && temp->proc->devices - temp->proc->allocated_devices <= work){
+                found = true;
+                work = work + temp->proc->allocated_devices;
+                finishWQ[i] = true;
+            }
+            temp = temp->next;
+        }
+
+    }
+
+    bool isSafe = true;
+
+    for(int i = 0; i < (RQlen < WQlen ? WQlen : RQlen); i+=1){
+        if(i < RQlen){
+            if(finishRQ[i] == false)
+                isSafe = false;
+        }
+        if(i < WQlen){
+            if(finishWQ[i] == false)
+                isSafe = false;
+        }
+    }
+
+    return isSafe;
 }

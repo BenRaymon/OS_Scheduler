@@ -1,4 +1,5 @@
 #include "queues.h"
+#include <stdbool.h>
 
 void processInputEvent(int* inputs, config *systemConfig);
 int* parseInput(char* input);
