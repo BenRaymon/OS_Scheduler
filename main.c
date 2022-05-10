@@ -1,6 +1,7 @@
 #include "test.h"
 
 int currentTime = 0;
+bool alreadyScheduled = false;
 node *holdQueueOne;
 node *holdQueueTwo;
 node *readyQueue;
@@ -36,45 +37,50 @@ int main(int argc, char *argv[]) {
             
             currentTime += 1;
 
+            if(readyQueue != NULL || runningProc){     
+                //if there is something in the ready queue, run it on the CPU before reading the input
+                printf("ITEM IN READY QUEUE, TIME: %d\n",currentTime);
+                //deadlockAvoidance
+                if(runningProc && runningProc->proc->request){
+                    if(checkRequest(runningProc->proc, systemConfig))
+                        roundRobin(systemConfig); 
+                    else printf("REQUEST DENIED");
+                } else
+                    roundRobin(systemConfig);
+                alreadyScheduled = true;
+            }
+
+
             /* Process the next line of input from file */
-            if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
-                inputs = parseInput(line);
-                
-                //inputs[1] will hold the arrival time
-                //wait for arrival to process the external event
-                if(!(inputs[1] > currentTime && inputs[1] != 9999)){
+            
+            while(inputs == NULL || inputs[1] <= currentTime && inputs[1] != 9999){
+                if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
+                    inputs = parseInput(line);
+                    
+                    //inputs[1] will hold the arrival time
+                    //wait for arrival to process the external event
+                    if(!(inputs[1] > currentTime && inputs[1] != 9999)){
+                        processInputEvent(inputs, systemConfig);
+                        inputs = NULL;
+
+                        if(fgets(line,sizeof(line),file)!= NULL)
+                            inputs = parseInput(line);
+                    }
+                } else if (inputs && inputs[1] <= currentTime){
                     processInputEvent(inputs, systemConfig);
                     inputs = NULL;
+
+                    if(fgets(line,sizeof(line),file)!= NULL)
+                        inputs = parseInput(line);
                 }
-            } else if (inputs && inputs[1] <= currentTime){
-                processInputEvent(inputs, systemConfig);
-                inputs = NULL;
-            }
-            else {
-                //If there is nothing left to do, exit
-                if(readyQueue == NULL && runningProc == NULL && inputs == NULL){
-                    currentTime = 100000;
+                else {
+                    //If there is nothing left to do, exit
+                    if(readyQueue == NULL && runningProc == NULL && inputs == NULL){
+                        currentTime = 10000;
+                    }
                 }
             }
 
-
-            //CHECK IF THERE ARE ANY INCOMING REQUESTS
-            //CHECK IF THE INCOMING REQUESTS ARE FOR THE CURRENT PROCESS ON THE CPU
-            //CHECK IF THE REQUEST CAN BE GRANTED USING BANKERS
-                //GRANT THE REQUEST AND ALLOW THE PROC TO EXECUTE ON THE CPU
-                //DENY THE REQUEST AND MOVE PROC TO WAIT QUEUE
-
-
-            /* SCHEDULE PROCESSES */
-            //BEFORE SCHEDULING
-            printf("TIME: %d\n", currentTime);
-            printf("BEFORE\n");
-            printAllQueues(systemConfig);
-            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
-            roundRobin(systemConfig);
-            //AFTER SCHEDULING
-            printf("AFTER\n");
-            printAllQueues(systemConfig);
 
 
             //CHECK FOR INCOMING RELEASES
@@ -82,7 +88,7 @@ int main(int argc, char *argv[]) {
 
 
             //CHECK IF ANY PROC IN THE WAIT QUEUE CAN BE MOVED TO READY QUEUE
-
+            
             
 
             /* CHECK HOLD QUEUES */
@@ -108,11 +114,69 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            printf("IS IT SAFE? %d", isSafe(systemConfig));
+            //printf("IS IT SAFE? %d", isSafe(systemConfig));
+
+            /* SCHEDULE PROCESSES */
+            //BEFORE SCHEDULING
+            //printf("TIME: %d\n", currentTime);
+            // if(currentTime < 20){
+            // printf("BEFORE\n");
+            // printAllQueues(systemConfig);}
+            // ROUND ROBIN SCHEDULING - SINGLE TICK ON CPU
+            if(!alreadyScheduled){
+                //if the scheduler has not yet run for this time tick, execute proc on CPU
+                printf("NO ITEM IN READY QUEUE, TIME: %d\n",currentTime);
+                if(runningProc && runningProc->proc->request){
+                    if(checkRequest(runningProc->proc, systemConfig))
+                        roundRobin(systemConfig); 
+                    else
+                        printf("REQUEST DENIED");
+                } else
+                    roundRobin(systemConfig);
+            }
+            //AFTER SCHEDULING
+             //if(currentTime < 20){printf("AFTER\n");
+             //printAllQueues(systemConfig);}
            
+            if(currentTime == 55 || currentTime == 56)
+                printAllQueues(systemConfig);
         }
+        printAllQueues(systemConfig);
         fclose(file);
     }
+}
+
+
+bool checkRequest(process *proc, config *systemConfig){
+
+    //if request <= need
+    if(proc->request->devices <= proc->devices - proc->allocated_devices){
+        //if request <= available
+        if(proc->request->devices <= systemConfig->available_devices){
+            //pretend to allocate
+            systemConfig->available_devices -= proc->request->devices; //available = available - request
+            proc->allocated_devices += proc->request->devices; //allocated = allocated + request
+            //need = need - request (dynamic through on demand calculations)
+
+            //is the system safe
+            if(isSafe(systemConfig)){
+                //if it is safe the resources are allocated
+                return true;
+            } else {
+                //otherwise move to wait queue and don't allocate
+                systemConfig->available_devices += proc->request->devices;
+                proc->allocated_devices -= proc->request->devices;
+                node *aNode = malloc(sizeof(node));
+                aNode->proc=proc;
+                aNode->next = NULL;
+                appendQueue(&waitingQueue, aNode); 
+                return false;
+            }
+        }
+    }
+
+    return true;
+
 }
 
 //create a process for a given job
@@ -122,6 +186,7 @@ void moveJobToReadyQueue(job *aJob, config *systemConfig){
     process *aProc = createProc(aJob); //create proc for this job
     node *aNode = malloc(sizeof(node)); //create new node
     aNode->proc = aProc; //set the proc of the node
+    aNode->next = NULL;
     systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory; //reduce system mem accordingly
     appendQueue(&readyQueue, aNode); //add node to ready queue
 }
@@ -136,6 +201,7 @@ void roundRobin(config *systemConfig){
     if(readyQueue && runningProc == NULL){
         runningProc = readyQueue;
         readyQueue = readyQueue->next;
+        runningProc -> next = NULL;
     }
     //Run the process for 1 tick on the CPU
     if(runningProc){
@@ -156,6 +222,7 @@ void roundRobin(config *systemConfig){
             if(readyQueue){
                 runningProc = readyQueue;
                 readyQueue = readyQueue->next;
+                runningProc->next = NULL;
             }
 
         } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
@@ -168,6 +235,7 @@ void roundRobin(config *systemConfig){
             if(readyQueue){
                 runningProc = readyQueue;
                 readyQueue = readyQueue->next;
+                runningProc->next = NULL;
             }
         }
     }
@@ -226,6 +294,9 @@ void processInputEvent(int *inputs, config *systemConfig){
         //Create request
         request *aRequest = createRequest(inputs);
 
+        printf("pid %d request id %d time %d", runningProc->proc->pid, aRequest->id, currentTime);
+        printAllQueues(systemConfig);
+
         //set the request pointer of the proc to the incoming request
         if(runningProc && runningProc->proc->pid == aRequest->id){
             //this should always be the case anyway
@@ -246,6 +317,9 @@ void processInputEvent(int *inputs, config *systemConfig){
 
     } else if (inputs[0] == 'D'){
         fprintf(stdout, "System Status\n");
+        if(currentTime >= inputs[1]){
+            printAllQueues(systemConfig);
+        }
     }
 }
 
@@ -329,7 +403,7 @@ void printAllQueues(config *systemConfig){
     printRunningProc(runningProc);
 
     printf("\nWait Queue: \n");
-    printProcQueue(readyQueue);
+    printProcQueue(waitingQueue);
     
 }
 

@@ -8,3 +8,6 @@ void printQueue(node* head);
 void printAllQueues(config *systemConfig);
 
 void roundRobin(config *systemConfig);
+
+
+bool checkRequest(process *proc, config *systemConfig);
