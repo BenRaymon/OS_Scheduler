@@ -92,6 +92,20 @@ node *findNode(node** head_ref, config *systemConfig)
     else return NULL;
 }
 
+node *findProc(node** head_ref, int keyID)
+{
+    node *temp = *head_ref;
+ 
+    while (temp != NULL && temp->proc->pid != keyID) {
+        temp = temp->next;
+    }
+
+    if(temp)
+        return temp;
+        
+    else return NULL;
+}
+
 //removes a node that has a job with specific ID from linked list
 // returns the job of the node that is removed
 job *deleteJobNode(node** head_ref, int keyID)

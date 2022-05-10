@@ -7,7 +7,10 @@ int* parseInput(char* input);
 void printQueue(node* head);
 void printAllQueues(config *systemConfig);
 
+//scheduling
 void roundRobin(config *systemConfig);
 
-
+//deadlocks
 bool checkRequest(process *proc, config *systemConfig);
+int isSafe(config *systemConfig);
+void deadlockHandling(config *systemConfig);
