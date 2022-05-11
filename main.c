@@ -10,11 +10,12 @@ node *finishedQueue;
 node *runningProc;
 
 config *systemConfig;
+//TODO: REMOVE SYSTEMCONFIG AS AN ARGUMENT FROM EVERY FUNCTION
+int* inputs;
 
 int main(int argc, char *argv[]) {
 
-    int* inputs = NULL;
-
+    inputs = NULL;
     holdQueueOne = NULL;
     holdQueueTwo = NULL;
     readyQueue = NULL;
@@ -84,8 +85,35 @@ int main(int argc, char *argv[]) {
         //Print status at the end
         printAllQueues(systemConfig);
         fclose(file);
+        freeAll();
     }
 }
+
+void freeAll(){
+    
+    node *temp = finishedQueue;
+    while(temp != NULL){
+        if(temp->proc){
+            if(temp->proc->request)
+                free(temp->proc->request);
+            free(temp->proc);
+            
+            node *tempNext = temp->next;
+            free(temp);
+            temp = tempNext;
+            
+        }
+    }
+
+
+    if(inputs)
+        free(inputs);
+
+    free(systemConfig);
+    
+
+}
+
 
 /*
  *  If there is enough memory available in the system for any jobs in 
@@ -216,6 +244,8 @@ void moveJobToReadyQueue(job *aJob, config *systemConfig){
     aNode->next = NULL;
     systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory; //reduce system mem accordingly
     appendQueue(&readyQueue, aNode); //add node to ready queue
+
+    free(aJob);
 }
 
 /*
@@ -264,8 +294,6 @@ void roundRobin(config *systemConfig){
 
             runningProc -> next = NULL;
             runningProc = NULL;
-
-            
 
             //put new proc on CPU
             if(readyQueue){
@@ -346,19 +374,15 @@ void processInputEvent(int *inputs, config *systemConfig){
         if(runningProc)
             printf("pid %d request id %d time %d", runningProc->proc->pid, aRequest->id, currentTime);
         printAllQueues(systemConfig);
+        
         //only handle requests if the request is for the currently running process
         if(runningProc && runningProc->proc->pid == aRequest->id){
             runningProc->proc->request = aRequest;
-        } 
-        // else {
-        //     //find the process that the request is for
-        //     node *aNode = findProc(&readyQueue, aRequest->id);
-        //     if(aNode == NULL)
-        //         aNode = findProc(&waitingQueue, aRequest->id);
-        //     if(aNode != NULL)
-        //         aNode->proc->request = aRequest;
-        // }
-        
+        }  else {
+            //requests only arrive for the proc on the cpu
+            //if the req is not for the currently running process, it is not needed - free it
+            free(aRequest);
+        }
 
         free(inputs); 
         inputs = NULL;
@@ -370,7 +394,7 @@ void processInputEvent(int *inputs, config *systemConfig){
         release *aRelease = createRelease(inputs);
 
         if(runningProc)
-            printf("pid %d request id %d time %d", runningProc->proc->pid, aRelease->id, currentTime);
+            printf("pid %d release id %d time %d", runningProc->proc->pid, aRelease->id, currentTime);
         
         //only handle a release if the release is for the currently running process
         if(runningProc && runningProc->proc->pid == aRelease->id){
@@ -381,8 +405,11 @@ void processInputEvent(int *inputs, config *systemConfig){
             runningProc=NULL;
             //check if the release of devices allows any other procs to move to RQ
             checkWaitQueue(systemConfig);
-        } 
 
+            free(aRelease);
+        } else {
+            free(aRelease);
+        }
 
         free(inputs);
         inputs = NULL;
@@ -392,6 +419,9 @@ void processInputEvent(int *inputs, config *systemConfig){
         if(currentTime >= inputs[1]){
             printAllQueues(systemConfig);
         }
+
+        free(inputs);
+        inputs = NULL;
     }
 }
 
@@ -399,23 +429,21 @@ void processInputEvent(int *inputs, config *systemConfig){
 int *parseInput(char* input){
     char* token = strtok(input, " ");
     char* subtext = malloc(sizeof(char) * 10); 
-    int* inputs = malloc(7 * sizeof(int));
+    int* inputs = malloc(((int)INPUT_LENGTH) * sizeof(int));
 
-    inputs[0] = input[0];
+    inputs[0] = input[0]; //input[0] = arrival time of event
 
     int counter = 1;
     //Split input string by space character
     while (token = strtok(0, " ")) {
-
         if (counter == 1){
             //first input is always just an integer
             inputs[counter] = atoi(token);
         } else {
-            //extract integer (remove the = part)
+            //extract integer
             memcpy(subtext,&token[2], strlen(token));
             inputs[counter] = atoi(subtext);
         }
-
         counter++;
     }
 
