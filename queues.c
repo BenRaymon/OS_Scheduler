@@ -102,7 +102,7 @@ node *findProc(node** head_ref, int keyID)
 
     if(temp)
         return temp;
-        
+
     else return NULL;
 }
 
@@ -132,6 +132,36 @@ job *deleteJobNode(node** head_ref, int keyID)
     job *aJob = temp->job;
     free(temp); 
     return aJob;
+}
+
+//removes a node that has a process with specific ID from linked list
+// returns the node
+node *removeProcNode(node** head_ref, int keyID)
+{
+    node *temp = *head_ref;
+    node *prev;
+
+    if (temp != NULL && temp->proc->pid == keyID) {
+        //process *aProc = temp->proc;
+        *head_ref = temp->next;
+        //free(temp);
+        temp->next = NULL;
+        return temp;
+    }
+ 
+    while (temp != NULL && temp->proc->pid != keyID) {
+        prev = temp;
+        temp = temp->next;
+    }
+ 
+    if (temp == NULL)
+        return NULL;
+ 
+    prev->next = temp->next;
+    //process *aProc = temp->proc;
+    //free(temp); 
+    temp->next = NULL;
+    return temp;
 }
 
 void printJobQueue(node *head){

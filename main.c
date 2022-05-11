@@ -120,11 +120,37 @@ int main(int argc, char *argv[]) {
     }
 }
 
+void checkWaitQueue(config *systemConfig){
+    
+    printf("TESTING INSIDE CHECKWQ");
+
+    node *temp = waitingQueue;
+    while(temp != NULL){
+        //safety alg only checks ready queue and currently running proc
+        //temporarily set the runningProc to the process that needs to be checked
+        node *running = runningProc;
+        runningProc = temp;
+
+        //if the request is granted move proc to ready queue
+        if(checkRequest(temp->proc, systemConfig)){
+            node *tempNext = temp->next; //save temp->next before removing temp from list
+            node *aNode = removeProcNode(&waitingQueue, temp->proc->pid);
+            appendQueue(&readyQueue, aNode);
+            temp = tempNext; //restore next node
+        }
+        else 
+            temp = temp->next;
+        
+        //restore the runningProc
+        runningProc = running;
+    }
+}
+
 void deadlockHandling(config *systemConfig){
     if(runningProc && runningProc->proc->request){
         //if there is an incoming request, satisfied or not, the process moves off the CPU
         if(checkRequest(runningProc->proc, systemConfig)){
-            //roundRobin(systemConfig);
+            roundRobin(systemConfig);
             //if the request is satisified, move proc to RQ
             appendQueue(&readyQueue, runningProc);
             runningProc->next = NULL;
@@ -215,11 +241,22 @@ void roundRobin(config *systemConfig){
             //release memory and devices
             systemConfig->available_memory += runningProc->proc->allocated_memory;
             systemConfig->available_devices += runningProc->proc->allocated_devices;
+
+            //if a process finishes and releases devices
+            //check if any proc on the wait queue can be moved
+            if(runningProc->proc->allocated_devices != 0 && waitingQueue){
+                printf("CHECK %d %d", currentTime, systemConfig->available_devices);
+                printAllQueues(systemConfig);
+                checkWaitQueue(systemConfig);
+            }
+
             runningProc->proc->allocated_memory = 0;
             runningProc->proc->allocated_devices = 0;
 
             runningProc -> next = NULL;
             runningProc = NULL;
+
+            
 
             //put new proc on CPU
             // if(readyQueue){
@@ -299,7 +336,7 @@ void processInputEvent(int *inputs, config *systemConfig){
 
         if(runningProc)
             printf("pid %d request id %d time %d", runningProc->proc->pid, aRequest->id, currentTime);
-
+        printAllQueues(systemConfig);
         //only handle requests if the request is for the currently running process
         if(runningProc && runningProc->proc->pid == aRequest->id){
             runningProc->proc->request = aRequest;
