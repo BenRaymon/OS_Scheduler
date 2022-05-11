@@ -9,24 +9,21 @@ node *waitingQueue;
 node *finishedQueue;
 node *runningProc;
 
+config *systemConfig;
+
 int main(int argc, char *argv[]) {
 
     int* inputs = NULL;
 
     holdQueueOne = NULL;
     holdQueueTwo = NULL;
-
     readyQueue = NULL;
     waitingQueue = NULL;
     finishedQueue= NULL;
-    
     runningProc = NULL;
-
+    systemConfig = malloc(sizeof(config));
     
-    config *systemConfig = malloc(sizeof(config));
-
     FILE *file = fopen(argv[2], "r" );
-
 
     if (file != NULL) {
         char line[1000];
@@ -44,7 +41,6 @@ int main(int argc, char *argv[]) {
             }
 
             /* Process the next line of input from file */
-            
             while(inputs == NULL || inputs[1] <= currentTime && inputs[1] != 9999){
                 if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
                     inputs = parseInput(line);
@@ -73,19 +69,12 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-
-
-            //CHECK FOR INCOMING RELEASES
-            //RELEASE DEVICES
+            //Wait queue is checked when a process terminates and releases devices (inside round robin function)
+            //or when a running process releases devices (happens inside processInputEvent function) 
 
             /* CHECK HOLD QUEUES */
-            // Can any jobs in HQ be moved to RQ?
-            // If yes, remove node from HQ and move to RQ
-            //HQ1 higher priority, search HQ1 first then HQ2
             checkHoldQueues(systemConfig);
 
-            
-            /* SCHEDULE PROCESSES */
             //if the scheduler has not yet run for this time tick, execute proc on CPU
             if(!alreadyScheduled){
                 deadlockHandling(systemConfig);
@@ -97,6 +86,15 @@ int main(int argc, char *argv[]) {
         fclose(file);
     }
 }
+
+/*
+ *  If there is enough memory available in the system for any jobs in 
+ *  either of the hold queues, then move them to the ready queue.
+ *  memory is allocated in the system for those jobs
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void checkHoldQueues(config *systemConfig){
     node *tempNode;
     tempNode = findNode(&holdQueueOne, systemConfig);
@@ -117,6 +115,15 @@ void checkHoldQueues(config *systemConfig){
         }
     }
 }
+
+/*
+ *  If there are enough devices available in the system for any 
+ *  processes in the wait queue, then move them to the ready queue
+ *  devices are allocated in the system for those processes
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void checkWaitQueue(config *systemConfig){
     node *temp = waitingQueue;
     while(temp != NULL){
@@ -140,6 +147,7 @@ void checkWaitQueue(config *systemConfig){
     }
 }
 
+
 void deadlockHandling(config *systemConfig){
     if(runningProc && runningProc->proc->request){
         //if there is an incoming request, satisfied or not, the process moves off the CPU
@@ -157,6 +165,7 @@ void deadlockHandling(config *systemConfig){
     } else
         roundRobin(systemConfig);
 }
+
 
 bool checkRequest(process *proc, config *systemConfig){
     //if request <= need
@@ -191,9 +200,15 @@ bool checkRequest(process *proc, config *systemConfig){
     return false;
 }
 
-//create a process for a given job
-//create node to hold process
-//add new node to ready queue
+/*
+ *  create a node with a processs for a given job
+ *  and put the node in the ready queue
+ *  allocate memory for the process in the system
+ *
+ *  @param aJob: the job that needs to be turned into a process for the ready queue
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void moveJobToReadyQueue(job *aJob, config *systemConfig){
     process *aProc = createProc(aJob); //create proc for this job
     node *aNode = malloc(sizeof(node)); //create new node
@@ -203,11 +218,17 @@ void moveJobToReadyQueue(job *aJob, config *systemConfig){
     appendQueue(&readyQueue, aNode); //add node to ready queue
 }
 
-//ROUND ROBIN SCHEDULING ALGORITHM
-//if no running proc, moves proc from RQ to CPU
-//gives proc on CPU one tick
-//removes proc from CPU if quantum up or execution is complete
-//  if proc is removed from CPU, new proc is put on CPU
+/*
+ *  Round Robin scheduler
+ *  Put a process on the CPU if there is no currently running proc
+ *  Execute the process on the CPU for one time tick
+ *  Remove the process from the CPU if the quantum expires or the execution completes
+ *  and deallocate any memory or devices if a process completes execution
+ *  Puts a new process on the CPU if one is taken off
+ * 
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void roundRobin(config *systemConfig){
     //take a process off the ready queue and move it to the CPU
     if(readyQueue && runningProc == NULL){
@@ -404,30 +425,6 @@ int *parseInput(char* input){
     return inputs;
 }
 
-
-// print contents of given queue
-void printQueue(node *head){
-    node *temp = head;
-
-    if(head->job){
-        printf("\tJob IDs: ");
-        while(temp != NULL){
-            printf("%d ", temp->job->job_id);
-            temp = temp->next;
-        }
-        printf("\n");
-    }
-
-    if(head->proc){
-        printf("\tPIDs: ");
-        while(temp != NULL){
-            printf("%d ", temp->proc->pid);
-            temp = temp->next;
-        }
-        printf("\n");
-    }
-    
-}
 
 /* Print all the Queues */
 void printAllQueues(config *systemConfig){

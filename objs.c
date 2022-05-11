@@ -1,5 +1,11 @@
 #include "objs.h"
 
+/*
+ *  creates a process with the data from a given job
+ *  
+ *  @param aJob: the job to base the process off of
+ *  @return process: the process that was created
+ */
 process *createProc(job* aJob){
     process *aProc = malloc(sizeof(process));
     aProc->pid = aJob->job_id;
@@ -15,6 +21,12 @@ process *createProc(job* aJob){
     return aProc;
 }
 
+/*
+ *  creates a job with the data from a list of inputs
+ *  
+ *  @param inputs: a list of integers representing the data of a job
+ *  @return job: the job that was created
+ */
 job *createJob(int* inputs){
     job *aJob = malloc(sizeof(job));
     aJob->arrival_time = inputs[1];
@@ -26,6 +38,12 @@ job *createJob(int* inputs){
     return aJob;
 }
 
+/*
+ *  creates a request with the data from a list of inputs
+ *  
+ *  @param inputs: a list of integers representing the data of a request
+ *  @return request: the request that was created
+ */
 request *createRequest(int* inputs){
     request *aRequest = malloc(sizeof(request));
     aRequest->time = inputs[1];
@@ -34,6 +52,12 @@ request *createRequest(int* inputs){
     return aRequest;
 }
 
+/*
+ *  creates a release with the data from a list of inputs
+ *  
+ *  @param inputs: a list of integers representing the data of a release
+ *  @return release: the release that was created
+ */
 release *createRelease(int* inputs){
     release *aRelease = malloc(sizeof(release));
     aRelease->time = inputs[1];

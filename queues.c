@@ -1,6 +1,12 @@
 #include "queues.h"
 
-//Append to any queue
+/*
+ *  appends a node to the end of a linked list
+ *
+ *  @param head: a reference to the head of the linked list
+ *  @param aNode: the node to be inserted
+ *  @return void
+ */
 void appendQueue(node **head, node *aNode){
     if(*head == NULL){
         *head = aNode;
@@ -13,9 +19,13 @@ void appendQueue(node **head, node *aNode){
     }
 }
 
-//SJF
-//insert node to a linked list sorted by shortest job first 
-//insert function for HQ1
+/*
+ *  inserts a node into a linked list sorted by burst time (SJF)
+ *
+ *  @param head: a reference to the head of the linked list
+ *  @param newNode: the node to be inserted
+ *  @return void
+ */
 void insertSJF(node **head, node *newNode){
     //If no nodes, make head the new node
     if(*head == NULL){
@@ -44,9 +54,13 @@ void insertSJF(node **head, node *newNode){
     }
 }
 
-//FIFO
-//insert node to a linked list sorted by arrival time
-//insert for HQ2
+/*
+ *  inserts a node into a linked list sorted by arrival time (FIFO)
+ *
+ *  @param head: a reference to the head of the linked list
+ *  @param newNode: the node to be inserted
+ *  @return void
+ */
 void insertFIFO(node **head, node *newNode){
     //If no nodes, make head the new node
     if(*head == NULL){
@@ -75,12 +89,18 @@ void insertFIFO(node **head, node *newNode){
     }
 }
 
-//finds the first node in linked list with a required memory that is less than or equal to the available system memory
-//returns the first node that can be moved from HQ to RQ
-node *findNode(node** head_ref, config *systemConfig)
+/*
+ *  finds the first node in linked list with a required memory 
+ *  that is less than or equal to the available system memory
+ *
+ *  @param head: a reference to the head of the linked list
+ *  @param systemConfig: the current configuration of the system
+ *  @return node: the first node that meets the criteria
+ */
+node *findNode(node** head, config *systemConfig)
 {
     // Store head node
-    node *temp = *head_ref;
+    node *temp = *head;
  
     // Search for the first process that can be put on the CPU
     while (temp != NULL && temp->job->memory > systemConfig->available_memory) {
@@ -92,9 +112,16 @@ node *findNode(node** head_ref, config *systemConfig)
     else return NULL;
 }
 
-node *findProc(node** head_ref, int keyID)
+/*
+ *  finds the node that has a process with a specified PID
+ *
+ *  @param head: a reference to the head of the linked list
+ *  @param keyID: the PID to search for
+ *  @return node: the node that contains the process with PID = keyID
+ */
+node *findProc(node** head, int keyID)
 {
-    node *temp = *head_ref;
+    node *temp = *head;
  
     while (temp != NULL && temp->proc->pid != keyID) {
         temp = temp->next;
@@ -106,16 +133,22 @@ node *findProc(node** head_ref, int keyID)
     else return NULL;
 }
 
-//removes a node that has a job with specific ID from linked list
-// returns the job of the node that is removed
-job *deleteJobNode(node** head_ref, int keyID)
+/*
+ *  removes a node that has a job with a specified
+ *  job id and frees the allocated memory for the node
+ *  
+ *  @param head: a reference to the head of the linked list
+ *  @param keyID: the job id to search for
+ *  @return job: the the job of the node that was removed and freed
+ */
+job *deleteJobNode(node** head, int keyID)
 {
-    node *temp = *head_ref;
+    node *temp = *head;
     node *prev;
 
     if (temp != NULL && temp->job->job_id == keyID) {
         job *aJob = temp->job;
-        *head_ref = temp->next;
+        *head = temp->next;
         free(temp);
         return aJob;
     }
@@ -134,17 +167,21 @@ job *deleteJobNode(node** head_ref, int keyID)
     return aJob;
 }
 
-//removes a node that has a process with specific ID from linked list
-// returns the node
-node *removeProcNode(node** head_ref, int keyID)
+/*
+ *  removes a node from a linked list that has a 
+ *  process with a specified pid. Does not free any memory 
+ *  
+ *  @param head: a reference to the head of the linked list
+ *  @param keyID: the pid to search for
+ *  @return node: the node that was removed from the list
+ */
+node *removeProcNode(node** head, int keyID)
 {
-    node *temp = *head_ref;
+    node *temp = *head;
     node *prev;
 
     if (temp != NULL && temp->proc->pid == keyID) {
-        //process *aProc = temp->proc;
-        *head_ref = temp->next;
-        //free(temp);
+        *head = temp->next;
         temp->next = NULL;
         return temp;
     }
@@ -158,12 +195,16 @@ node *removeProcNode(node** head_ref, int keyID)
         return NULL;
  
     prev->next = temp->next;
-    //process *aProc = temp->proc;
-    //free(temp); 
     temp->next = NULL;
     return temp;
 }
 
+/*
+ *  print all of the jobs of the nodes in the linked list
+ *  
+ *  @param head: the head of the list
+ *  @return void
+ */
 void printJobQueue(node *head){
     node *temp = head;
 
@@ -177,6 +218,13 @@ void printJobQueue(node *head){
     
 }
 
+/*
+ *  print all of the processes of the nodes in the linked list
+ *  prints job id, run time, and time accrued on CPU
+ * 
+ *  @param head: the head of the list
+ *  @return void
+ */
 void printProcQueue(node *head){
     node *temp = head;
 
@@ -189,6 +237,13 @@ void printProcQueue(node *head){
     }
 }
 
+/*
+ *  print all of the finished processes in the linked list
+ *  prints job id, arrival time, finish time, and turnaround time
+ * 
+ *  @param head: the head of the list
+ *  @return void
+ */
 void printFinishedJobs(node *head){
     node *temp = head;
 
@@ -201,6 +256,13 @@ void printFinishedJobs(node *head){
     }
 }
 
+/*
+ *  print all of the processes of the nodes in the linked list
+ *  prints job id, time accrued on CPU, and time remaining
+ *  
+ *  @param head: the head of the list
+ *  @return void
+ */
 void printRunningProc(node *head){
     node *temp = head;
 

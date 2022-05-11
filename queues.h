@@ -15,5 +15,4 @@ node *findProc(node **head, int keyID);
 job *deleteJobNode(node **head, int keyID);
 node *removeProcNode(node **head, int keyID);
 
-
 void moveJobToReadyQueue(job *aJob, config *systemConfig);
