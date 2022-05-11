@@ -14,3 +14,6 @@ void roundRobin(config *systemConfig);
 bool checkRequest(process *proc, config *systemConfig);
 int isSafe(config *systemConfig);
 void deadlockHandling(config *systemConfig);
+
+void checkWaitQueue(config *systemConfig);
+void checkHoldQueues(config *systemConfig);
