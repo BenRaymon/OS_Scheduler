@@ -7,6 +7,7 @@ void insertFIFO(node **head, node *newNode);
 void printJobQueue(node *head);
 void printProcQueue(node *head);
 void printFinishedJobs(node *head);
+void printTAT();
 void printRunningProc(node *head);
 
 node *findNode(node **head, config *systemConfig);

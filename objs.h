@@ -44,7 +44,7 @@ typedef struct node{
     struct node* next;
 } node;
 
-typedef struct configuration {
+typedef struct config {
     int start_time;
     int total_memory;
     int available_memory;

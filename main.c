@@ -84,13 +84,13 @@ int main(int argc, char *argv[]) {
         }
         //Print status at the end
         printAllQueues(systemConfig);
+        printTAT();
         fclose(file);
         freeAll();
     }
 }
 
 void freeAll(){
-    
     node *temp = finishedQueue;
     while(temp != NULL){
         if(temp->proc){
@@ -105,13 +105,10 @@ void freeAll(){
         }
     }
 
-
     if(inputs)
         free(inputs);
 
     free(systemConfig);
-    
-
 }
 
 
@@ -181,6 +178,7 @@ void deadlockHandling(config *systemConfig){
         //if there is an incoming request, satisfied or not, the process moves off the CPU
         if(checkRequest(runningProc->proc, systemConfig)){
             //if the request is satisified, move proc to RQ
+            //roundRobin(systemConfig);
             appendQueue(&readyQueue, runningProc);
             runningProc->next = NULL;
             runningProc=NULL;
@@ -296,11 +294,11 @@ void roundRobin(config *systemConfig){
             runningProc = NULL;
 
             //put new proc on CPU
-            if(readyQueue){
-                runningProc = readyQueue;
-                readyQueue = readyQueue->next;
-                runningProc->next = NULL;
-            }
+            // if(readyQueue){
+            //     runningProc = readyQueue;
+            //     readyQueue = readyQueue->next;
+            //     runningProc->next = NULL;
+            // }
 
         } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
             //quantum is up, time to go back to the ready queue
@@ -309,11 +307,11 @@ void roundRobin(config *systemConfig){
             runningProc = NULL;
 
             //put new proc on CPU
-            if(readyQueue){
-                runningProc = readyQueue;
-                readyQueue = readyQueue->next;
-                runningProc->next = NULL;
-            }
+            // if(readyQueue){
+            //     runningProc = readyQueue;
+            //     readyQueue = readyQueue->next;
+            //     runningProc->next = NULL;
+            // }
         }
     }
 }

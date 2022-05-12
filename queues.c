@@ -1,5 +1,7 @@
 #include "queues.h"
 
+float systemTAT;
+
 /*
  *  appends a node to the end of a linked list
  *
@@ -247,13 +249,24 @@ void printProcQueue(node *head){
 void printFinishedJobs(node *head){
     node *temp = head;
 
+    systemTAT = 0;
+    float count = 0;
+
     printf("--------------------------------------------------------\n");
     printf("Job ID    Arrival Time    Finish Time    Turnaround Time\n");
     printf("========================================================\n");
     while(temp != NULL){
+        systemTAT += temp->proc->turnaround_time;
+        count += 1;
         printf("  %d \t       %d \t      %d \t       %d\n", temp->proc->pid, temp->proc->arrival_time, temp->proc->completion_time, temp->proc->turnaround_time);
         temp = temp->next;
     }
+
+    systemTAT = systemTAT / count;
+}
+
+void printTAT(){
+    printf("\nSystem Turnaround Time: %.2f \n\n", systemTAT);
 }
 
 /*
