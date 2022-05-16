@@ -10,7 +10,6 @@ node *finishedQueue;
 node *runningProc;
 
 config *systemConfig;
-//TODO: REMOVE SYSTEMCONFIG AS AN ARGUMENT FROM EVERY FUNCTION
 int* inputs;
 
 
@@ -334,25 +333,11 @@ void roundRobin(config *systemConfig){
             runningProc -> next = NULL;
             runningProc = NULL;
 
-            //put new proc on CPU
-            // if(readyQueue){
-            //     runningProc = readyQueue;
-            //     readyQueue = readyQueue->next;
-            //     runningProc->next = NULL;
-            // }
-
         } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
             //quantum is up, time to go back to the ready queue
             appendQueue(&readyQueue,runningProc);
             runningProc->next = NULL;
             runningProc = NULL;
-
-            //put new proc on CPU
-            // if(readyQueue){
-            //     runningProc = readyQueue;
-            //     readyQueue = readyQueue->next;
-            //     runningProc->next = NULL;
-            // }
         }
     }
 }
@@ -371,8 +356,6 @@ void roundRobin(config *systemConfig){
  */
 void processInputEvent(int *inputs, config *systemConfig){
     if(inputs[0] == 'C'){
-        fprintf(stdout, "System Configuration\n");
-
         //Create configuration
         systemConfig->start_time = inputs[1];
         systemConfig->total_memory = inputs[2];
@@ -385,8 +368,6 @@ void processInputEvent(int *inputs, config *systemConfig){
         inputs = NULL;
 
     } else if (inputs[0] == 'A'){
-        fprintf(stdout, "Job Arrival\n");
-        
         //Create Job
         job *aJob = createJob(inputs);
 
@@ -415,8 +396,6 @@ void processInputEvent(int *inputs, config *systemConfig){
 
         
     } else if (inputs[0] == 'Q'){
-        fprintf(stdout, "Request for Devices\n");
-
         //Create request
         request *aRequest = createRequest(inputs);
         
@@ -433,13 +412,8 @@ void processInputEvent(int *inputs, config *systemConfig){
         inputs = NULL;
 
     } else if (inputs[0] == 'L'){
-        fprintf(stdout, "Release of Devices\n");
-
         //Create release
         release *aRelease = createRelease(inputs);
-
-        if(runningProc)
-            printf("pid %d release id %d time %d", runningProc->proc->pid, aRelease->id, currentTime);
         
         //only handle a release if the release is for the currently running process
         if(runningProc && runningProc->proc->pid == aRelease->id){
@@ -460,7 +434,6 @@ void processInputEvent(int *inputs, config *systemConfig){
         inputs = NULL;
 
     } else if (inputs[0] == 'D'){
-        fprintf(stdout, "System Status\n");
         if(currentTime >= inputs[1]){
             printAllQueues(systemConfig);
         }
