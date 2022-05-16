@@ -282,8 +282,6 @@ void roundRobin(config *systemConfig){
             //if a process finishes and releases devices
             //check if any proc on the wait queue can be moved
             if(runningProc->proc->allocated_devices != 0 && waitingQueue){
-                printf("CHECK %d %d", currentTime, systemConfig->available_devices);
-                printAllQueues(systemConfig);
                 checkWaitQueue(systemConfig);
             }
 
@@ -368,10 +366,6 @@ void processInputEvent(int *inputs, config *systemConfig){
 
         //Create request
         request *aRequest = createRequest(inputs);
-
-        if(runningProc)
-            printf("pid %d request id %d time %d", runningProc->proc->pid, aRequest->id, currentTime);
-        printAllQueues(systemConfig);
         
         //only handle requests if the request is for the currently running process
         if(runningProc && runningProc->proc->pid == aRequest->id){
