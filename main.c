@@ -1,4 +1,4 @@
-#include "test.h"
+#include "reqs.h"
 
 int currentTime = 0;
 bool alreadyScheduled = false;
@@ -197,11 +197,13 @@ void checkWaitQueue(config *systemConfig){
 }
 
 /*
- *  Deadlock handling
- *  move current request off of CPU upon incoming request
- *  - if request is satisfied: move to ready queue 
- *  - if request is denied: move to waiting queue
- *  if no process is running, move to roundRobin 
+ *  Ensure the system avoids entering an unsafe state
+ *  and schedule the process on the CPU
+ * 
+ *  Use Banker's algorithm to determine if a request can be granted
+ *   - grant the request and preempt to ready queue
+ *   - deny request and preempt to wait queue
+ *  call round robin to give process execution time 
  *  
  *  @param systemConfig: the current configuration of the system
  *  @return void
@@ -211,7 +213,6 @@ void deadlockHandling(config *systemConfig){
         //if there is an incoming request, satisfied or not, the process moves off the CPU
         if(checkRequest(runningProc->proc, systemConfig)){
             //if the request is satisified, move proc to RQ
-            //roundRobin(systemConfig);
             appendQueue(&readyQueue, runningProc);
             runningProc->next = NULL;
             runningProc=NULL;
@@ -226,7 +227,7 @@ void deadlockHandling(config *systemConfig){
 }
 
 /*
- *  Determine if a process can be granted
+ *  Determine if a process can be granted a request
  *  ensure request is <= need
  *  ensure system is in safe state
  *  ensure enough available resources
@@ -444,8 +445,7 @@ void processInputEvent(int *inputs, config *systemConfig){
 }
 
 /*
- *  parse input string into array of integers for each
- *  input value
+ *  parse input string into array of integers
  *  
  *  @param input: string value of input line
  *  @return *int: array of corresponding integer values
@@ -510,18 +510,11 @@ void printAllQueues(config *systemConfig){
 }
 
 /*
- *  Safety algorithm-Banker's algorithm
- *  count processes in ready queue and 
- *  add current pocess to list taken from
- *  ready queue
- *  Loop through process list looking for processes
- *  with need<=available
- *  If all processes satify need<=available, system is safe
- *  otherwise, system is unsafe
- *  
- *  
+ *  Safety algorithm for Banker's algorithm
+ *  Determine if the system is in a safe state
+ * 
  *  @param systemConfig: the current configuration of the system
- *  @return void
+ *  @return boolean: represent if the system is in a safe state
  */
 int isSafe(config *systemConfig){
     int numProcs = 0;

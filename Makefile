@@ -1,5 +1,5 @@
 all: os
-os: objs.o queues.o main.c test.h
+os: objs.o queues.o main.c reqs.h
 	gcc -o os main.c objs.o queues.o
 
 
