@@ -90,6 +90,11 @@ int main(int argc, char *argv[]) {
     }
 }
 
+/*
+ *  Clear all finished queues, input objects, and system configuration
+ *  
+ *  @return void
+ */
 void freeAll(){
     node *temp = finishedQueue;
     while(temp != NULL){
@@ -316,8 +321,13 @@ void roundRobin(config *systemConfig){
     }
 }
 
-
-//create the necessary objects based on the input event
+/*
+ *  parse input object and create necessary system object
+ *  
+ *  @param inputs: current set of input values
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void processInputEvent(int *inputs, config *systemConfig){
     if(inputs[0] == 'C'){
         fprintf(stdout, "System Configuration\n");
@@ -452,7 +462,11 @@ int *parseInput(char* input){
 }
 
 
-/* Print all the Queues */
+/*
+ *  print the status of each queue
+ *  
+ *  @return void
+ */
 void printAllQueues(config *systemConfig){
 
     printf("At time %d: \n", currentTime);

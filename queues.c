@@ -265,6 +265,11 @@ void printFinishedJobs(node *head){
     systemTAT = systemTAT / count;
 }
 
+/*
+ *  print total turnaround time for the system
+ *  
+ *  @return void
+ */
 void printTAT(){
     printf("\nSystem Turnaround Time: %.2f \n\n", systemTAT);
 }
