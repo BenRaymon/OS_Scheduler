@@ -13,6 +13,24 @@ config *systemConfig;
 //TODO: REMOVE SYSTEMCONFIG AS AN ARGUMENT FROM EVERY FUNCTION
 int* inputs;
 
+
+/*
+ *  Main function
+ *  Recieve input lines one at a time
+ *  process internal events before external
+ *  events
+ *  process input events
+ *  if ready queue is empty, there is no
+ *  running process, and no remaining inputs:
+ *  - check hold queues
+ *  - check dealocks: if none move on
+ *  print queues and free resources from memory
+ *  
+ *  
+ *  @param argc: argumemt count
+ *  @param argv: array of argument values
+ *  @return void
+ */
 int main(int argc, char *argv[]) {
 
     inputs = NULL;
@@ -91,7 +109,9 @@ int main(int argc, char *argv[]) {
 }
 
 /*
- *  Clear all finished queues, input objects, and system configuration
+ *  Free all processes in finished queue from memory
+ *  free input objects from memory
+ *  free system configuration from memory
  *  
  *  @return void
  */
@@ -177,7 +197,16 @@ void checkWaitQueue(config *systemConfig){
     }
 }
 
-
+/*
+ *  Deadlock handling
+ *  move current request off of CPU upon incoming request
+ *  - if request is satisfied: move to ready queue 
+ *  - if request is denied: move to waiting queue
+ *  if no process is running, move to roundRobin 
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 void deadlockHandling(config *systemConfig){
     if(runningProc && runningProc->proc->request){
         //if there is an incoming request, satisfied or not, the process moves off the CPU
@@ -197,7 +226,16 @@ void deadlockHandling(config *systemConfig){
         roundRobin(systemConfig);
 }
 
-
+/*
+ *  Determine if a process can be granted
+ *  ensure request is <= need
+ *  ensure system is in safe state
+ *  ensure enough available resources
+ *  
+ *  @param proc: process object for the requested process
+ *  @param systemConfig: the current configuration of the system
+ *  @return bool: whether request was granted or not
+ */
 bool checkRequest(process *proc, config *systemConfig){
     //if request <= need
     if(proc->request->devices <= proc->devices - proc->allocated_devices){
@@ -320,7 +358,12 @@ void roundRobin(config *systemConfig){
 }
 
 /*
- *  parse input object and create necessary system object
+ *  parse input object
+ *  - create necessary system object if applicable
+ *  - place job in appropriate queue: ready, hq1, hq2
+ *  - handle request for devices
+ *  - handle release of devices
+ *  - handle request to print system state
  *  
  *  @param inputs: current set of input values
  *  @param systemConfig: the current configuration of the system
@@ -427,7 +470,13 @@ void processInputEvent(int *inputs, config *systemConfig){
     }
 }
 
-//return array of integers for a given string input line
+/*
+ *  parse input string into array of integers for each
+ *  input value
+ *  
+ *  @param input: string value of input line
+ *  @return *int: array of corresponding integer values
+ */
 int *parseInput(char* input){
     char* token = strtok(input, " ");
     char* subtext = malloc(sizeof(char) * 10); 
@@ -487,7 +536,20 @@ void printAllQueues(config *systemConfig){
     
 }
 
-// SAFETY ALGORITHM
+/*
+ *  Safety algorithm-Banker's algorithm
+ *  count processes in ready queue and 
+ *  add current pocess to list taken from
+ *  ready queue
+ *  Loop through process list looking for processes
+ *  with need<=available
+ *  If all processes satify need<=available, system is safe
+ *  otherwise, system is unsafe
+ *  
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
 int isSafe(config *systemConfig){
     int numProcs = 0;
 
