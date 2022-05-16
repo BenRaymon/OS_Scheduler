@@ -14,17 +14,8 @@ int* inputs;
 
 
 /*
- *  Main function
- *  Recieve input lines one at a time
- *  process internal events before external
- *  events
- *  process input events
- *  if ready queue is empty, there is no
- *  running process, and no remaining inputs:
- *  - check hold queues
- *  - check dealocks: if none move on
- *  print queues and free resources from memory
- *  
+ *  Simulates the OS functions of process 
+ *  scheduling and deadlock prevention
  *  
  *  @param argc: argumemt count
  *  @param argv: array of argument values
