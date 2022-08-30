@@ -1,147 +1,467 @@
-#include "test.h"
+// BEN RAYMON
+// JACKSON PACK
 
-//Hold queue 1 - linked list
-node *headHQ1;
-//Hold queue 2 - linked list
-node *headHQ2;
+#include "reqs.h"
 
+int currentTime = 0;
+bool alreadyScheduled = false;
+node *holdQueueOne;
+node *holdQueueTwo;
+node *readyQueue;
+node *waitingQueue;
+node *finishedQueue;
+node *runningProc;
+
+config *systemConfig;
+int* inputs;
+
+
+/*
+ *  Simulates the OS functions of process 
+ *  scheduling and deadlock prevention
+ *  
+ *  @param argc: argumemt count
+ *  @param argv: array of argument values
+ *  @return void
+ */
 int main(int argc, char *argv[]) {
 
-    //Hold queue 1 - SJF - linked list
-    headHQ1 = NULL;
-    //Hold queue 2 - FIFO - linked list
-    headHQ2 = NULL;
+    inputs = NULL;
+    holdQueueOne = NULL;
+    holdQueueTwo = NULL;
+    readyQueue = NULL;
+    waitingQueue = NULL;
+    finishedQueue= NULL;
+    runningProc = NULL;
+    systemConfig = malloc(sizeof(config));
     
-    config *systemConfig = malloc(sizeof(config));
-
     FILE *file = fopen(argv[2], "r" );
 
-    //READ INPUT FROM FILE
     if (file != NULL) {
         char line[1000];
-        while(fgets(line,sizeof(line),file)!= NULL){
-            //fprintf(stdout,"%s",line);
+        
+        while(currentTime < 9999){
             
-            if(line[0] == 'C'){
-                fprintf(stdout, "System Configuration\n");
-                
-                int* inputs = parseInput(line);
+            currentTime += 1;
 
-                systemConfig->start_time = inputs[0];
-                systemConfig->memory = inputs[1];
-                systemConfig->devices = inputs[2];
-                systemConfig->quantum = inputs[3];
+            //process internal events before external events
+            //if there is a proc in the ready queue or if there is a proc on the cpu
+            //run this process before reading the next input line
+            if(readyQueue != NULL || runningProc){     
+                deadlockHandling(systemConfig);
+                alreadyScheduled = true;
+            }
 
-                free(inputs);
+            /* Process the next line of input from file */
+            while(inputs == NULL || inputs[1] <= currentTime && inputs[1] != 9999){
+                if(inputs == NULL && fgets(line,sizeof(line),file)!= NULL){
+                    inputs = parseInput(line);
+                    
+                    //inputs[1] will hold the arrival time
+                    //wait for arrival to process the external event
+                    if(!(inputs[1] > currentTime && inputs[1] != 9999)){
+                        processInputEvent(inputs, systemConfig);
+                        inputs = NULL;
 
-                // printf("Start time %d\n", systemConfig->start_time);
-                // printf("Memory %d\n", systemConfig->memory);
-                // printf("Devices %d\n", systemConfig->devices);
-                // printf("Quantum %d\n", systemConfig->quantum);
+                        if(fgets(line,sizeof(line),file)!= NULL)
+                            inputs = parseInput(line);
+                    }
+                } else if (inputs && inputs[1] <= currentTime){
+                    processInputEvent(inputs, systemConfig);
+                    inputs = NULL;
 
-            } else if (line[0] == 'A'){
-                fprintf(stdout, "Job Arrival\n");
-                
-                int* inputs = parseInput(line);
-                job *aJob = malloc(sizeof(job));
-
-                aJob->arrival_time = inputs[0];
-                aJob->job_id = inputs[1];
-                aJob->memory = inputs[2];
-                aJob->devices = inputs[3];
-                aJob->burst = inputs[4];
-                aJob->priority = inputs[5];
-                
-                free(inputs);
-
-                if(aJob->memory > systemConfig->memory){
-                    //NOT ENOUGH MEMORY
-                } else if (aJob->devices > systemConfig->devices){
-                    //NOT ENOUGH DEVICES
-                } else {
-                    node *aNode = malloc(sizeof(node));
-                    aNode -> job = aJob;
-
-                    if(aJob->priority == 1){
-                        insertHQ1(aNode);
-                    } else if (aJob->priority == 2){
-                        insertHQ2(aNode);
+                    if(fgets(line,sizeof(line),file)!= NULL)
+                        inputs = parseInput(line);
+                }
+                else {
+                    //If there is nothing left to do, exit
+                    if(readyQueue == NULL && runningProc == NULL && inputs == NULL){
+                        currentTime = 10000;
                     }
                 }
-
-                printList(headHQ1);
-                printf("split\n");
-                printList(headHQ2);
-
-                //create a node and add job to a linked list
-
-                // printf("Arrival time %d\n", aJob->arrival_time);
-                // printf("Job ID %d\n", aJob->job_id);
-                // printf("Memory %d\n", aJob->memory);
-                // printf("Devices %d\n", aJob->devices);
-                // printf("Burst %d\n", aJob->burst);
-                // printf("Priority %d\n", aJob->priority);
-
-
-            } else if (line[0] == 'Q'){
-                fprintf(stdout, "Request for Devices\n");
-
-                int* inputs = parseInput(line);
-                request *aRequest = malloc(sizeof(request));
-
-                aRequest->time = inputs[0];
-                aRequest->job_id = inputs[1];
-                aRequest->devices = inputs[2];
-
-                free(inputs);
-                                
-                // printf("time %d\n", aRequest->time);
-                // printf("job id %d\n", aRequest->job_id);
-                // printf("devices %d\n", aRequest->devices);
-
-            } else if (line[0] == 'L'){
-                fprintf(stdout, "Release of Devices\n");
-
-                int* inputs = parseInput(line);
-                release *aRelease = malloc(sizeof(release));
-                
-                aRelease->time = inputs[0];
-                aRelease->job_id = inputs[1];
-                aRelease->devices = inputs[2];
-
-                free(inputs);
-
-                // printf("time %d\n", aRelease->time);
-                // printf("job id %d\n", aRelease->job_id);
-                // printf("devices %d\n", aRelease->devices);
-
-            } else if (line[0] == 'D'){
-                fprintf(stdout, "System Status\n");
             }
-        }
 
+            //Wait queue is checked when a process terminates and releases devices (inside round robin function)
+            //or when a running process releases devices (happens inside processInputEvent function) 
+
+            /* CHECK HOLD QUEUES */
+            checkHoldQueues(systemConfig);
+
+            //if the scheduler has not yet run for this time tick, execute proc on CPU
+            if(!alreadyScheduled){
+                deadlockHandling(systemConfig);
+            }
+            
+        }
+        //Print status at the end
+        printAllQueues(systemConfig);
+        printTAT();
         fclose(file);
+        freeAll();
     }
 }
 
+/*
+ *  Free all processes in finished queue from memory
+ *  free input objects from memory
+ *  free system configuration from memory
+ *  
+ *  @return void
+ */
+void freeAll(){
+    node *temp = finishedQueue;
+    while(temp != NULL){
+        if(temp->proc){
+            if(temp->proc->request)
+                free(temp->proc->request);
+            free(temp->proc);
+            
+            node *tempNext = temp->next;
+            free(temp);
+            temp = tempNext;
+            
+        }
+    }
+
+    if(inputs)
+        free(inputs);
+
+    free(systemConfig);
+}
+
+
+/*
+ *  If there is enough memory available in the system for any jobs in 
+ *  either of the hold queues, then move them to the ready queue.
+ *  memory is allocated in the system for those jobs
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void checkHoldQueues(config *systemConfig){
+    node *tempNode;
+    tempNode = findNode(&holdQueueOne, systemConfig);
+    if(tempNode){
+        job *aJob = deleteJobNode(&holdQueueOne, tempNode->job->job_id);
+        if(aJob){
+            moveJobToReadyQueue(aJob, systemConfig);
+            tempNode->job = NULL;
+        }
+    }
+
+    tempNode = findNode(&holdQueueTwo, systemConfig);
+    if(tempNode){
+        job *aJob = deleteJobNode(&holdQueueTwo, tempNode->job->job_id);
+        if(aJob){
+            moveJobToReadyQueue(aJob, systemConfig);
+            tempNode->job = NULL;
+        }
+    }
+}
+
+/*
+ *  If there are enough devices available in the system for any 
+ *  processes in the wait queue, then move them to the ready queue
+ *  devices are allocated in the system for those processes
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void checkWaitQueue(config *systemConfig){
+    node *temp = waitingQueue;
+    while(temp != NULL){
+        //safety alg only checks ready queue and currently running proc
+        //temporarily set the runningProc to the process that needs to be checked
+        node *running = runningProc;
+        runningProc = temp;
+
+        //if the request is granted move proc to ready queue
+        if(checkRequest(temp->proc, systemConfig)){
+            node *tempNext = temp->next; //save temp->next before removing temp from list
+            node *aNode = removeProcNode(&waitingQueue, temp->proc->pid);
+            appendQueue(&readyQueue, aNode);
+            temp = tempNext; //restore next node
+        }
+        else 
+            temp = temp->next;
+        
+        //restore the runningProc
+        runningProc = running;
+    }
+}
+
+/*
+ *  Ensure the system avoids entering an unsafe state
+ *  and schedule the process on the CPU
+ * 
+ *  Use Banker's algorithm to determine if a request can be granted
+ *   - grant the request and preempt to ready queue
+ *   - deny request and preempt to wait queue
+ *  call round robin to give process execution time 
+ *  
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void deadlockHandling(config *systemConfig){
+    if(runningProc && runningProc->proc->request){
+        //if there is an incoming request, satisfied or not, the process moves off the CPU
+        if(checkRequest(runningProc->proc, systemConfig)){
+            //if the request is satisified, move proc to RQ
+            appendQueue(&readyQueue, runningProc);
+            runningProc->next = NULL;
+            runningProc=NULL;
+        } else {
+            //if the request is not satisfied, proc moves to WQ
+            appendQueue(&waitingQueue, runningProc); 
+            runningProc->next = NULL;
+            runningProc = NULL;
+        }
+    } else
+        roundRobin(systemConfig);
+}
+
+/*
+ *  Determine if a process can be granted a request
+ *  ensure request is <= need
+ *  ensure system is in safe state
+ *  ensure enough available resources
+ *  
+ *  @param proc: process object for the requested process
+ *  @param systemConfig: the current configuration of the system
+ *  @return bool: whether request was granted or not
+ */
+bool checkRequest(process *proc, config *systemConfig){
+    //if request <= need
+    if(proc->request->devices <= proc->devices - proc->allocated_devices){
+        //if request <= available
+        if(proc->request->devices <= systemConfig->available_devices){
+            //pretend to allocate
+            systemConfig->available_devices -= proc->request->devices; //available = available - request
+            proc->allocated_devices += proc->request->devices; //allocated = allocated + request
+            //need = need - request (dynamic through on demand calculations)
+
+            //is the system safe
+            if(isSafe(systemConfig)){
+                //if it is safe the resources are allocated
+                //process no longer has a request because it was granted
+                free(proc->request);
+                proc->request = NULL; 
+                //Request is granted, system is safe
+                return true;
+            } else {
+                //otherwise don't allocate resources
+                systemConfig->available_devices += proc->request->devices;
+                proc->allocated_devices -= proc->request->devices;
+                //Request denied because it puts the system in an unsafe state
+                return false;
+            }
+        }  
+        //Request denied because there are not enough available devices              
+        return false;
+    } 
+    //Request denied because request !< need
+    return false;
+}
+
+/*
+ *  create a node with a processs for a given job
+ *  and put the node in the ready queue
+ *  allocate memory for the process in the system
+ *
+ *  @param aJob: the job that needs to be turned into a process for the ready queue
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void moveJobToReadyQueue(job *aJob, config *systemConfig){
+    process *aProc = createProc(aJob); //create proc for this job
+    node *aNode = malloc(sizeof(node)); //create new node
+    aNode->proc = aProc; //set the proc of the node
+    aNode->next = NULL;
+    systemConfig->available_memory = systemConfig->available_memory - aProc->allocated_memory; //reduce system mem accordingly
+    appendQueue(&readyQueue, aNode); //add node to ready queue
+
+    free(aJob);
+}
+
+/*
+ *  Round Robin scheduler
+ *  Put a process on the CPU if there is no currently running proc
+ *  Execute the process on the CPU for one time tick
+ *  Remove the process from the CPU if the quantum expires or the execution completes
+ *  and deallocate any memory or devices if a process completes execution
+ *  Puts a new process on the CPU if one is taken off
+ * 
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void roundRobin(config *systemConfig){
+    //take a process off the ready queue and move it to the CPU
+    if(readyQueue && runningProc == NULL){
+        runningProc = readyQueue;
+        readyQueue = readyQueue->next;
+        runningProc -> next = NULL;
+    }
+    //Run the process for 1 tick on the CPU
+    if(runningProc){
+        runningProc->proc->running_time += 1;
+        
+        if(runningProc->proc->running_time == runningProc->proc->burst){
+            //process is done, take off CPU
+            appendQueue(&finishedQueue, runningProc);
+            //set time variables for the completed process
+            runningProc->proc->completion_time = currentTime;
+            runningProc->proc->turnaround_time = currentTime - runningProc->proc->arrival_time;
+            runningProc->proc->wait_time = runningProc->proc->turnaround_time - runningProc->proc->running_time;
+            //release memory and devices
+            systemConfig->available_memory += runningProc->proc->allocated_memory;
+            systemConfig->available_devices += runningProc->proc->allocated_devices;
+
+            //if a process finishes and releases devices
+            //check if any proc on the wait queue can be moved
+            if(runningProc->proc->allocated_devices != 0 && waitingQueue){
+                checkWaitQueue(systemConfig);
+            }
+
+            runningProc->proc->allocated_memory = 0;
+            runningProc->proc->allocated_devices = 0;
+
+            runningProc -> next = NULL;
+            runningProc = NULL;
+
+        } else if(runningProc->proc->running_time % systemConfig->quantum == 0){
+            //quantum is up, time to go back to the ready queue
+            appendQueue(&readyQueue,runningProc);
+            runningProc->next = NULL;
+            runningProc = NULL;
+        }
+    }
+}
+
+/*
+ *  parse input object
+ *  - create necessary system object if applicable
+ *  - place job in appropriate queue: ready, hq1, hq2
+ *  - handle request for devices
+ *  - handle release of devices
+ *  - handle request to print system state
+ *  
+ *  @param inputs: current set of input values
+ *  @param systemConfig: the current configuration of the system
+ *  @return void
+ */
+void processInputEvent(int *inputs, config *systemConfig){
+    if(inputs[0] == 'C'){
+        //Create configuration
+        systemConfig->start_time = inputs[1];
+        systemConfig->total_memory = inputs[2];
+        systemConfig->available_memory = inputs[2];
+        systemConfig->available_devices = inputs[3];
+        systemConfig->total_devices = inputs[3];
+        systemConfig->quantum = inputs[4];
+
+        free(inputs);
+        inputs = NULL;
+
+    } else if (inputs[0] == 'A'){
+        //Create Job
+        job *aJob = createJob(inputs);
+
+        free(inputs);
+        inputs = NULL;
+
+        //Place job in the right queue
+        if(aJob->memory > systemConfig->total_memory){
+            //NOT ENOUGH TOTAL MEMORY
+        } else if (aJob->devices > systemConfig->total_devices){
+            //NOT ENOUGH TOTAL DEVICES
+        } else if (aJob->memory <= systemConfig->available_memory){
+            //THERE IS ENOUGH AVAILABLE MEMORY, CREATE A PROCESS AND PUT IN READY QUEUE
+            moveJobToReadyQueue(aJob, systemConfig);
+        } else {
+            //THERE IS NOT ENOUGH AVAILABLE MEMORY, PUT IN HOLD QUEUE
+            node *aNode = malloc(sizeof(node));
+            aNode -> job = aJob;
+
+            if(aJob->priority == 1){
+                insertSJF(&holdQueueOne, aNode);
+            } else if (aJob->priority == 2){
+                insertFIFO(&holdQueueTwo, aNode);
+            }
+        }
+
+        
+    } else if (inputs[0] == 'Q'){
+        //Create request
+        request *aRequest = createRequest(inputs);
+        
+        //only handle requests if the request is for the currently running process
+        if(runningProc && runningProc->proc->pid == aRequest->id){
+            runningProc->proc->request = aRequest;
+        }  else {
+            //requests only arrive for the proc on the cpu
+            //if the req is not for the currently running process, it is not needed - free it
+            free(aRequest);
+        }
+
+        free(inputs); 
+        inputs = NULL;
+
+    } else if (inputs[0] == 'L'){
+        //Create release
+        release *aRelease = createRelease(inputs);
+        
+        //only handle a release if the release is for the currently running process
+        if(runningProc && runningProc->proc->pid == aRelease->id){
+            runningProc->proc->allocated_devices -= aRelease->devices; //release devices
+            //interrupt quantum and move to ready queue
+            appendQueue(&readyQueue, runningProc);
+            runningProc->next = NULL;
+            runningProc=NULL;
+            //check if the release of devices allows any other procs to move to RQ
+            checkWaitQueue(systemConfig);
+
+            free(aRelease);
+        } else {
+            free(aRelease);
+        }
+
+        free(inputs);
+        inputs = NULL;
+
+    } else if (inputs[0] == 'D'){
+        if(currentTime >= inputs[1]){
+            printAllQueues(systemConfig);
+        }
+
+        free(inputs);
+        inputs = NULL;
+    }
+}
+
+/*
+ *  parse input string into array of integers
+ *  
+ *  @param input: string value of input line
+ *  @return *int: array of corresponding integer values
+ */
 int *parseInput(char* input){
     char* token = strtok(input, " ");
     char* subtext = malloc(sizeof(char) * 10); 
-    int* inputs = malloc(7 * sizeof(int));
+    int* inputs = malloc(((int)INPUT_LENGTH) * sizeof(int));
 
-    int counter = 0;
+    inputs[0] = input[0]; //input[0] = arrival time of event
+
+    int counter = 1;
     //Split input string by space character
     while (token = strtok(0, " ")) {
-
-        if (counter == 0){
+        if (counter == 1){
             //first input is always just an integer
             inputs[counter] = atoi(token);
         } else {
-            //extract integer (remove the = part)
+            //extract integer
             memcpy(subtext,&token[2], strlen(token));
             inputs[counter] = atoi(subtext);
         }
-
         counter++;
     }
 
@@ -152,69 +472,92 @@ int *parseInput(char* input){
 }
 
 
-//SJF
-void insertHQ1(node *newNode){
-    //If no nodes, make head the new node
-    if(headHQ1 == NULL){
-        headHQ1 = newNode;
-    } else {
-        node* curr = headHQ1;
-        //if new node has shorter burst than current head, place in front
-        if(newNode->job->burst < curr->job->burst){
-            headHQ1 = newNode;
-            newNode->next = curr;
-            return;
-        }
-        
-        while(curr->next != NULL){
-            //If new job is shorter than next job, put in front of next node
-            if(newNode->job->burst < curr->next->job->burst){
-                newNode->next = curr->next;
-                curr->next = newNode;
-                return;
-            }
-            curr = curr->next;
-        }
-        //New job is currently the longest job so put at the end
-        curr->next = newNode;
-        return;
-    }
+/*
+ *  print the status of each queue
+ *  
+ *  @return void
+ */
+void printAllQueues(config *systemConfig){
+
+    printf("At time %d: \n", currentTime);
+    printf("Current Available Main Memory=%d\n", systemConfig->available_memory);
+    printf("Current Devices=%d\n", systemConfig->available_devices);
+
+    printf("\nCompleted Jobs: \n");
+    printFinishedJobs(finishedQueue);
+    
+    printf("\nHold Queue 1:\n");
+    printJobQueue(holdQueueOne);
+
+    printf("\nHold Queue 2:\n");
+    printJobQueue(holdQueueTwo);
+
+    printf("\nReady Queue: \n");
+    printProcQueue(readyQueue);
+
+    printf("\nProcess running on CPU: \n");
+    printRunningProc(runningProc);
+
+    printf("\nWait Queue: \n");
+    printProcQueue(waitingQueue);
+    
 }
 
-//FIFO
-void insertHQ2(node* newNode){
-    //If no nodes, make head the new node
-    if(headHQ2 == NULL){
-        headHQ2 = newNode;
-    } else {
-        node* curr = headHQ2;
-        //If new node arrived before current head, place before head
-        if(newNode->job->arrival_time < headHQ2->job->arrival_time){
-            headHQ2 = newNode;
-            newNode->next = curr;
-            return;
-        } 
+/*
+ *  Safety algorithm for Banker's algorithm
+ *  Determine if the system is in a safe state
+ * 
+ *  @param systemConfig: the current configuration of the system
+ *  @return boolean: represent if the system is in a safe state
+ */
+int isSafe(config *systemConfig){
+    int numProcs = 0;
 
-        while(curr->next != NULL){
-            //If new job arrived before the next job, put in front of next node
-            if(newNode->job->arrival_time < curr->next->job->arrival_time){
-                newNode->next = curr->next;
-                curr->next = newNode;
-                return;
-            }
-            curr = curr->next;
-        }
-        //New job is currently the last to arrive so put at the end
-        curr->next = newNode;
-        return;
-    }
-}
-
-void printList(node *head){
-    node *temp = head;
-
+    node *tempHead = readyQueue;
+    node *temp = readyQueue;
+    node *prev = temp;
     while(temp != NULL){
-        printf("PRINT LIST jobid = %d burst = %d at = %d\n", temp->job->job_id, temp->job->burst, temp->job->arrival_time);
+        //count procs in ready queue
+        prev = temp;
         temp = temp->next;
+        numProcs += 1;
     }
+    //temporarily append the currently running process to the linked list of procs to iterate
+    prev->next = runningProc;
+    numProcs+=1;
+
+    //set finish to false by default
+    bool finish[numProcs];
+    for(int i = 0; i < numProcs; i+=1){
+        finish[i] = false;
+    }
+
+    int work = systemConfig->available_devices; //work = available
+    bool found = true;
+
+    //loop until all processes are finished or there are no processes with a need <= work 
+    while(found){
+        found = false;
+        temp = tempHead;
+        for(int i = 0; i < numProcs; i++){
+            if(finish[i] == false && temp && temp->proc->devices - temp->proc->allocated_devices <= work){
+                found = true;
+                work = work + temp->proc->allocated_devices;
+                finish[i] = true;
+            }
+            temp = temp->next;
+        }
+    }
+
+    //If all processes are finished, safe state
+    bool isSafe = true;
+    for(int i = 0; i < numProcs; i+=1){
+        if(finish[i] == false)
+            isSafe = false;
+    }
+
+    //runningProc was temporarily added to the end of the list
+    //now remove it so that runningProc is not part of the RQ
+    prev->next = NULL;
+    return isSafe;
 }
