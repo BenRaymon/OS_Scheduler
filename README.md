@@ -1,4 +1,5 @@
 ## Scheduling and Deadlock Avoidance Project
+CISC361 Spring 2022
 
 To compile the program run `make os` in the top level directory of the project. 
 
